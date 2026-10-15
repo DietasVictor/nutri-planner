@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Utensils, 
   Calendar as CalendarIcon, 
   Activity, 
   Plus, 
@@ -25,7 +24,6 @@ import {
   CheckCircle2, 
   Sun, 
   Moon, 
-  Zap,
   Award
 } from 'lucide-react';
 
@@ -144,7 +142,7 @@ export default function App() {
 
   const weekDays = getWeekDaysFromDate(getSelectedBaseDate());
 
-  // Estado Local
+  // Estado Local Seguro (Persistencia Protegida)
   const [recipes, setRecipes] = useState(() => {
     const saved = localStorage.getItem('nutri_app_recipes');
     return saved ? JSON.parse(saved) : INITIAL_RECIPES;
@@ -185,7 +183,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Guardado Automático Persistente
+  // Guardado Automático
   useEffect(() => { localStorage.setItem('nutri_app_recipes', JSON.stringify(recipes)); }, [recipes]);
   useEffect(() => { localStorage.setItem('nutri_app_profile', JSON.stringify(profile)); }, [profile]);
   useEffect(() => { localStorage.setItem('nutri_app_sports', JSON.stringify(sportsLog)); }, [sportsLog]);
@@ -194,7 +192,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('nutri_app_water', JSON.stringify(waterLog)); }, [waterLog]);
   useEffect(() => { localStorage.setItem('nutri_app_adherence', JSON.stringify(adherenceLog)); }, [adherenceLog]);
 
-  // Exportar / Importar
+  // Backup JSON
   const exportBackup = () => {
     const backupData = { recipes, profile, sportsLog, measurements, weeklyMenu, waterLog, adherenceLog, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -258,7 +256,6 @@ export default function App() {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'} font-sans pb-28`}>
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 bg-emerald-600 text-white px-4 py-2 rounded-2xl shadow-lg text-xs font-bold animate-bounce">
           ✓ {toastMessage}
@@ -274,7 +271,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-lg font-bold leading-tight">NutriPlan PWA</h1>
-              <p className="text-xs text-slate-400 font-medium">{weekDays[0].dateFormatted} - {weekDays[6].dateFormatted}</p>
+              <p className="text-xs text-slate-400 font-medium">Semana: {weekDays[0].dateFormatted} - {weekDays[6].dateFormatted}</p>
             </div>
           </div>
 
@@ -298,18 +295,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 pt-6 space-y-6">
-        {/* Módulo de Hidratación Diario en la Parte Superior */}
-        <HydrationWidget 
-          profile={profile} 
-          waterLog={waterLog} 
-          setWaterLog={setWaterLog} 
-          selectedDateKey={weekDays[0].key} 
-          darkMode={darkMode}
-          showToast={showToast}
-        />
-
         {activeTab === 'plan' && (
           <PlanView 
             weeklyMenu={weeklyMenu} 
@@ -323,6 +309,8 @@ export default function App() {
             setCurrentWeekOffset={setCurrentWeekOffset}
             adherenceLog={adherenceLog}
             setAdherenceLog={setAdherenceLog}
+            waterLog={waterLog}
+            setWaterLog={setWaterLog}
             darkMode={darkMode}
             showToast={showToast}
           />
@@ -363,7 +351,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Navigation Bar */}
       <nav className={`fixed bottom-0 left-0 right-0 border-t py-2.5 px-4 z-40 backdrop-blur-lg transition-colors ${darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-100'}`}>
         <div className="max-w-md mx-auto flex justify-between items-center">
           <NavButton id="plan" label="Menú Semanal" icon={<CalendarIcon className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} darkMode={darkMode} />
@@ -394,7 +381,7 @@ function NavButton({ id, label, icon, activeTab, setActiveTab, darkMode }) {
   );
 }
 
-// COMPONENTE MÓDULO DE HIDRATACIÓN DIARIO
+// MÓDULO DE HIDRATACIÓN (Solo dentro del Menú Semanal)
 function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, darkMode, showToast }) {
   const targetWaterMl = Math.round(Number(profile.weight || 70) * 35);
   const currentGlasses = waterLog[selectedDateKey] || 0;
@@ -430,7 +417,7 @@ function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, dark
           <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${progressPct}%` }}></div>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={removeGlass} className={`px-2 py-1 rounded-xl text-xs font-bold ${darkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-100 hover:bg-slate-200'}`}>-</button>
+          <button onClick={removeGlass} className={`px-2.5 py-1 rounded-xl text-xs font-bold ${darkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-100 hover:bg-slate-200'}`}>-</button>
           <button onClick={addGlass} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 shadow-md shadow-blue-500/20">
             + Vaso
           </button>
@@ -440,8 +427,8 @@ function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, dark
   );
 }
 
-// MENÚ SEMANAL CON CONTROL DE ADHERENCIA
-function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDate, weekDays, currentWeekOffset, setCurrentWeekOffset, adherenceLog, setAdherenceLog, darkMode, showToast }) {
+// 1. MENÚ SEMANAL CON NAVEGACIÓN, CONMUTADOR MATRIZ/DÍA A DÍA E HIDRATACIÓN
+function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDate, weekDays, currentWeekOffset, setCurrentWeekOffset, adherenceLog, setAdherenceLog, waterLog, setWaterLog, darkMode, showToast }) {
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena'];
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
   const [viewMode, setViewMode] = useState('matrix');
@@ -477,6 +464,14 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
     setAdherenceLog(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const getDayMacros = (dayKcal) => {
+    return {
+      protein: Math.round((dayKcal * (profile.proteinPct / 100)) / 4),
+      carbs: Math.round((dayKcal * (profile.carbsPct / 100)) / 4),
+      fat: Math.round((dayKcal * (profile.fatPct / 100)) / 9)
+    };
+  };
+
   const generateGroceryList = () => {
     const ingredients = [];
     weekDays.forEach(d => {
@@ -492,7 +487,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
 
   const groceryList = generateGroceryList();
 
-  // Cálculo de Adherencia Semanal (%)
   const totalAssignedMeals = weekDays.reduce((acc, d) => {
     const dayMenu = weeklyMenu[d.key] || {};
     return acc + Object.values(dayMenu).filter(Boolean).length;
@@ -503,21 +497,25 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   }, 0);
 
   const adherencePct = totalAssignedMeals > 0 ? Math.round((completedMeals / totalAssignedMeals) * 100) : 0;
+  const selectedDaySportsKcal = getSportsKcalForDate(selectedDateKey);
+  const selectedDayTotalKcal = fixedBaseTargetKcal + selectedDaySportsKcal;
+  const selectedDayMacros = getDayMacros(selectedDayTotalKcal);
+  const currentDayInfo = weekDays.find(d => d.key === selectedDateKey) || weekDays[0];
 
   return (
     <div className="space-y-5">
-      {/* Selector de Semana y Adherencia */}
+      {/* Selector de Semana, Botones de Vista y Lista de Compra */}
       <div className={`p-4 rounded-3xl border shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3 transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <div className="flex items-center gap-2">
           <button onClick={() => setCurrentWeekOffset(prev => prev - 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronLeft className="w-4 h-4" /></button>
           <div className="text-center sm:text-left">
             <span className="text-xs font-bold block">{weekDays[0].monthName.toUpperCase()} {weekDays[0].year}</span>
-            <span className="text-[11px] text-emerald-500 font-semibold">{weekDays[0].dateFormatted} - {weekDays[6].dateFormatted}</span>
+            <span className="text-[11px] text-emerald-500 font-semibold">Del {weekDays[0].dateFormatted} al {weekDays[6].dateFormatted}</span>
           </div>
           <button onClick={() => setCurrentWeekOffset(prev => prev + 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronRight className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-end">
           <div className="flex items-center gap-1.5 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-2xl text-xs font-bold border border-amber-500/20">
             <Award className="w-4 h-4" />
             <span>Adherencia: {adherencePct}%</span>
@@ -530,22 +528,47 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
           <button onClick={() => setShowGroceryModal(true)} className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1">
             <ShoppingCart className="w-4 h-4" /> Compra ({groceryList.length})
           </button>
+
+          <div className={`flex gap-1 p-1 rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            <button onClick={() => setViewMode('matrix')} className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'matrix' ? (darkMode ? 'bg-slate-900 text-white shadow-sm' : 'bg-white shadow-sm text-slate-900') : 'text-slate-400'}`}>
+              <Grid className="w-3.5 h-3.5 inline mr-1" /> Matriz 7D
+            </button>
+            <button onClick={() => setViewMode('cards')} className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'cards' ? (darkMode ? 'bg-slate-900 text-white shadow-sm' : 'bg-white shadow-sm text-slate-900') : 'text-slate-400'}`}>
+              <List className="w-3.5 h-3.5 inline mr-1" /> Día a Día
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* VISTA MATRIZ */}
+      {/* Módulo de Hidratación (Únicamente en esta vista) */}
+      <HydrationWidget 
+        profile={profile} 
+        waterLog={waterLog} 
+        setWaterLog={setWaterLog} 
+        selectedDateKey={selectedDateKey} 
+        darkMode={darkMode}
+        showToast={showToast}
+      />
+
+      {/* VISTA MATRIZ DE 7 DÍAS */}
       {viewMode === 'matrix' && (
         <div className={`overflow-x-auto rounded-3xl border shadow-sm p-4 transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
           <table className="w-full text-left min-w-[780px] border-collapse">
             <thead>
               <tr className="border-b border-slate-800/20">
                 <th className="p-2 text-xs font-bold text-slate-400 uppercase w-28">Comida</th>
-                {weekDays.map(d => (
-                  <th key={d.key} className="p-2 text-center">
-                    <p className="text-xs font-bold">{d.dayName}</p>
-                    <p className="text-[10px] text-slate-400">{d.dateFormatted}</p>
-                  </th>
-                ))}
+                {weekDays.map(d => {
+                  const daySports = getSportsKcalForDate(d.key);
+                  const dayTotal = fixedBaseTargetKcal + daySports;
+                  return (
+                    <th key={d.key} className="p-2 text-center">
+                      <p className="text-xs font-bold">{d.dayName}</p>
+                      <p className="text-[10px] text-slate-400">{d.dateFormatted}</p>
+                      <span className="text-[10px] font-extrabold text-emerald-500 block mt-0.5">{dayTotal} kcal</span>
+                      {daySports > 0 && <span className="text-[9px] text-amber-500 font-bold block">+{daySports} dep.</span>}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/10">
@@ -586,11 +609,107 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       )}
 
-      {/* Modal Lista Compra */}
+      {/* VISTA DÍA A DÍA (1 solo día seleccionado) */}
+      {viewMode === 'cards' && (
+        <div className="space-y-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
+            {weekDays.map((d) => (
+              <button
+                key={d.key}
+                onClick={() => setSelectedDateKey(d.key)}
+                className={`px-3.5 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  selectedDateKey === d.key
+                    ? 'bg-slate-900 text-white shadow-md dark:bg-emerald-600'
+                    : darkMode ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-white text-slate-600 border border-slate-100'
+                }`}
+              >
+                {d.fullLabel}
+              </button>
+            ))}
+          </div>
+
+          <div className={`p-4 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xs font-bold">Meta para {currentDayInfo.fullLabel}</h3>
+                {selectedDaySportsKcal > 0 && <span className="text-[10px] text-amber-500 font-bold">Incluye +{selectedDaySportsKcal} kcal por deporte</span>}
+              </div>
+              <span className="text-xs font-extrabold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full">{selectedDayTotalKcal} kcal</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-rose-500/10 p-2.5 rounded-2xl border border-rose-500/20">
+                <p className="text-[10px] uppercase font-bold text-rose-500">Proteínas</p>
+                <p className="text-sm font-extrabold text-rose-600">{selectedDayMacros.protein}g</p>
+              </div>
+              <div className="bg-amber-500/10 p-2.5 rounded-2xl border border-amber-500/20">
+                <p className="text-[10px] uppercase font-bold text-amber-500">Carbos</p>
+                <p className="text-sm font-extrabold text-amber-600">{selectedDayMacros.carbs}g</p>
+              </div>
+              <div className="bg-blue-500/10 p-2.5 rounded-2xl border border-blue-500/20">
+                <p className="text-[10px] uppercase font-bold text-blue-500">Grasas</p>
+                <p className="text-sm font-extrabold text-blue-600">{selectedDayMacros.fat}g</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {meals.map((meal) => {
+              const currentRecipe = weeklyMenu[selectedDateKey]?.[meal];
+              const isDone = adherenceLog[`${selectedDateKey}_${meal}`];
+              return (
+                <div key={meal} className={`p-4 rounded-3xl border shadow-sm space-y-2 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{meal}</span>
+                    <div className="flex items-center gap-2">
+                      {currentRecipe && (
+                        <>
+                          <button onClick={() => toggleMealAdherence(selectedDateKey, meal)} className={`text-xs font-bold flex items-center gap-1 ${isDone ? 'text-emerald-500' : 'text-slate-400'}`}>
+                            <CheckCircle2 className="w-4 h-4" /> {isDone ? 'Completada' : 'Marcar'}
+                          </button>
+                          <button onClick={() => removeRecipe(selectedDateKey, meal)} className="text-rose-500 p-1">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {currentRecipe ? (
+                    <div className={`p-3 rounded-2xl border flex justify-between items-center ${isDone ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-500/5 border-slate-500/10'}`}>
+                      <div>
+                        <p className="text-xs font-bold">{currentRecipe.name}</p>
+                        <p className="text-[10px] text-slate-400">{currentRecipe.kcal} kcal | P: {currentRecipe.protein}g | C: {currentRecipe.carbs}g | G: {currentRecipe.fat}g</p>
+                      </div>
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-semibold">{currentRecipe.prepTime}</span>
+                    </div>
+                  ) : (
+                    <select 
+                      onChange={(e) => {
+                        const found = recipes.find(r => r.id === e.target.value);
+                        if (found) assignRecipe(selectedDateKey, meal, found);
+                      }}
+                      defaultValue=""
+                      className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                    >
+                      <option value="" disabled>+ Añadir a {meal}</option>
+                      {recipes.map(r => (
+                        <option key={r.id} value={r.id}>{r.name} ({r.kcal} kcal)</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Lista de Compra */}
       {showGroceryModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className={`rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[80vh] overflow-y-auto ${darkMode ? 'bg-slate-900 text-white' : 'bg-white'}`}>
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center border-b pb-2 border-slate-800/20">
               <h3 className="text-sm font-bold flex items-center gap-2"><ShoppingCart className="w-4 h-4 text-emerald-500" /> Lista de la Compra Semanal</h3>
               <button onClick={() => setShowGroceryModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
             </div>
@@ -603,7 +722,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-xs text-slate-400 text-center py-4">Asigna recetas al menú semanal para generar la lista.</p>}
+            ) : <p className="text-xs text-slate-400 text-center py-4">Asigna recetas al menú semanal para generar la lista de supermercado.</p>}
           </div>
         </div>
       )}
@@ -611,107 +730,411 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   );
 }
 
-// RESTO DE VISTAS (Deportes, Recetas, Antropometría, Perfil)
-function SportsView({ sportsLog, setSportsLog, weekDays, darkMode, showToast }) {
+// 2. REGISTRO COMPLETO DE DEPORTES
+function SportsView({ sportsLog, setSportsLog, weekDays, currentWeekOffset, setCurrentWeekOffset, darkMode, showToast }) {
   const [sportType, setSportType] = useState('Gimnasio');
   const [calories, setCalories] = useState('');
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
 
+  const sportsOptions = ['Ciclismo', 'Carrera', 'Natación', 'Gimnasio', 'Otros'];
+
   const handleAdd = (e) => {
     e.preventDefault();
     if (!calories) return;
-    setSportsLog(prev => [{ id: 's_' + Date.now(), dateKey: selectedDateKey, type: sportType, calories: Number(calories) }, ...prev]);
+    const newEntry = { id: 's_' + Date.now(), dateKey: selectedDateKey, type: sportType, calories: Number(calories) };
+    setSportsLog(prev => [newEntry, ...prev]);
     setCalories('');
-    showToast('Sesión deportiva añadida');
+    showToast('Sesión deportiva registrada');
+  };
+
+  const handleRemove = (id) => {
+    setSportsLog(prev => prev.filter(s => s.id !== id));
   };
 
   return (
     <div className="space-y-5">
+      <div className={`p-4 rounded-3xl border shadow-sm flex justify-between items-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+        <button onClick={() => setCurrentWeekOffset(prev => prev - 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronLeft className="w-4 h-4" /></button>
+        <span className="text-xs font-bold">Semana del {weekDays[0].dateFormatted} al {weekDays[6].dateFormatted}</span>
+        <button onClick={() => setCurrentWeekOffset(prev => prev + 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronRight className="w-4 h-4" /></button>
+      </div>
+
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-        <h2 className="text-sm font-bold flex items-center gap-2"><Dumbbell className="w-4 h-4 text-emerald-500" /> Registrar Actividad Deportiva</h2>
+        <h2 className="text-sm font-bold flex items-center gap-2"><Dumbbell className="w-4 h-4 text-emerald-500" /> Registrar Sesión Deportiva</h2>
         <form onSubmit={handleAdd} className="space-y-3 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <select value={selectedDateKey} onChange={e => setSelectedDateKey(e.target.value)} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 font-semibold">
-              {weekDays.map(d => <option key={d.key} value={d.key}>{d.fullLabel}</option>)}
-            </select>
-            <select value={sportType} onChange={e => setSportType(e.target.value)} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 font-semibold">
-              {['Ciclismo', 'Carrera', 'Natación', 'Gimnasio', 'Otros'].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <input type="number" required placeholder="Gasto kcal" value={calories} onChange={e => setCalories(e.target.value)} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 font-semibold" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-slate-400 font-semibold mb-1">Día de la Semana</label>
+              <select value={selectedDateKey} onChange={e => setSelectedDateKey(e.target.value)} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 font-semibold">
+                {weekDays.map(d => <option key={d.key} value={d.key}>{d.fullLabel}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-400 font-semibold mb-1">Tipo de Deporte</label>
+              <select value={sportType} onChange={e => setSportType(e.target.value)} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 font-semibold">
+                {sportsOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-400 font-semibold mb-1">Gasto Calórico (kcal)</label>
+              <input type="number" required placeholder="300" value={calories} onChange={e => setCalories(e.target.value)} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl p-2 font-semibold" />
+            </div>
           </div>
-          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl">+ Añadir Deporte</button>
+          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">+ Añadir Deporte</button>
         </form>
+      </div>
+
+      <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Entrenamientos Registrados</h3>
+        <div className="space-y-2">
+          {sportsLog.map((s) => {
+            const dayInfo = weekDays.find(d => d.key === s.dateKey) || { fullLabel: s.dateKey };
+            return (
+              <div key={s.id} className="bg-slate-500/5 p-3 rounded-2xl border border-slate-500/10 text-xs flex justify-between items-center">
+                <div>
+                  <span className="text-[10px] bg-slate-900 text-white dark:bg-emerald-600 px-2 py-0.5 rounded-full font-bold mr-2">{dayInfo.fullLabel}</span>
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-bold">{s.type}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-extrabold text-emerald-500">+{s.calories} kcal</span>
+                  <button onClick={() => handleRemove(s.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+// 3. RECETARIO COMPLETO
 function RecipesView({ recipes, setRecipes, darkMode, showToast }) {
   const [showModal, setShowModal] = useState(false);
-  const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', kcal: '', protein: '', carbs: '', fat: '' });
+  const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', ingredients: '', steps: '' });
 
-  const handleAdd = (e) => {
+  const handleAddRecipe = (e) => {
     e.preventDefault();
-    setRecipes(prev => [{ ...newRecipe, id: 'r_' + Date.now(), kcal: Number(newRecipe.kcal), protein: Number(newRecipe.protein) || 0, carbs: Number(newRecipe.carbs) || 0, fat: Number(newRecipe.fat) || 0 }, ...prev]);
+    if (!newRecipe.name || !newRecipe.kcal) return;
+    const created = {
+      id: 'r_' + Date.now(),
+      name: newRecipe.name,
+      category: newRecipe.category,
+      prepTime: newRecipe.prepTime,
+      difficulty: newRecipe.difficulty,
+      kcal: Number(newRecipe.kcal),
+      protein: Number(newRecipe.protein) || 0,
+      carbs: Number(newRecipe.carbs) || 0,
+      fat: Number(newRecipe.fat) || 0,
+      ingredients: newRecipe.ingredients ? newRecipe.ingredients.split('\n') : ['Ingredientes variados'],
+      steps: newRecipe.steps ? newRecipe.steps.split('\n') : ['Cocinar e integrar.']
+    };
+    setRecipes(prev => [created, ...prev]);
     setShowModal(false);
-    showToast('Receta guardada');
+    showToast('Receta creada con éxito');
+  };
+
+  const handleRemoveRecipe = (id) => {
+    setRecipes(prev => prev.filter(r => r.id !== id));
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-sm font-bold flex items-center gap-2"><ChefHat className="w-4 h-4 text-emerald-500" /> Base de Recetas</h2>
-        <button onClick={() => setShowModal(true)} className="bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1"><Plus className="w-4 h-4" /> Nueva</button>
+        <h2 className="text-sm font-bold flex items-center gap-2"><ChefHat className="w-4 h-4 text-emerald-500" /> Base de Datos de Recetas</h2>
+        <button onClick={() => setShowModal(true)} className="bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1"><Plus className="w-4 h-4" /> Nueva Receta</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {recipes.map(r => (
-          <div key={r.id} className={`p-4 rounded-3xl border shadow-sm space-y-2 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-            <h3 className="text-sm font-bold">{r.name}</h3>
-            <p className="text-xs text-slate-400">{r.kcal} kcal | P:{r.protein}g C:{r.carbs}g G:{r.fat}g</p>
+        {recipes.map((recipe) => (
+          <div key={recipe.id} className={`p-4 rounded-3xl border shadow-sm space-y-3 relative group ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">{recipe.category}</span>
+                <h3 className="text-sm font-bold mt-1">{recipe.name}</h3>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">{recipe.difficulty}</span>
+                <button onClick={() => handleRemoveRecipe(recipe.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-1 bg-slate-500/5 p-2 rounded-xl text-center text-[10px]">
+              <div><p className="text-slate-400">Kcal</p><p className="font-bold">{recipe.kcal}</p></div>
+              <div><p className="text-rose-500">Prot</p><p className="font-bold">{recipe.protein}g</p></div>
+              <div><p className="text-amber-500">Carb</p><p className="font-bold">{recipe.carbs}g</p></div>
+              <div><p className="text-blue-500">Grasa</p><p className="font-bold">{recipe.fat}g</p></div>
+            </div>
           </div>
         ))}
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[85vh] overflow-y-auto ${darkMode ? 'bg-slate-900 text-white' : 'bg-white'}`}>
+            <div className="flex justify-between items-center border-b pb-2 border-slate-800/20">
+              <h3 className="text-sm font-bold">Añadir Nueva Receta</h3>
+              <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
+            </div>
+            <form onSubmit={handleAddRecipe} className="space-y-3 text-xs">
+              <input type="text" required placeholder="Nombre receta" value={newRecipe.name} onChange={e => setNewRecipe({...newRecipe, name: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2" />
+              <div className="grid grid-cols-4 gap-2">
+                <input type="number" required placeholder="Kcal" value={newRecipe.kcal} onChange={e => setNewRecipe({...newRecipe, kcal: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5" />
+                <input type="number" placeholder="Prot" value={newRecipe.protein} onChange={e => setNewRecipe({...newRecipe, protein: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5" />
+                <input type="number" placeholder="Carb" value={newRecipe.carbs} onChange={e => setNewRecipe({...newRecipe, carbs: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5" />
+                <input type="number" placeholder="Fat" value={newRecipe.fat} onChange={e => setNewRecipe({...newRecipe, fat: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5" />
+              </div>
+              <textarea rows="2" placeholder="Ingredientes (uno por línea)" value={newRecipe.ingredients} onChange={e => setNewRecipe({...newRecipe, ingredients: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2"></textarea>
+              <textarea rows="2" placeholder="Pasos de preparación (uno por línea)" value={newRecipe.steps} onChange={e => setNewRecipe({...newRecipe, steps: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2"></textarea>
+              <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl">Guardar Receta</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+// 4. ANTROPOMETRÍA CON GRÁFICO MULTIEJE, FORMULARIO Y TABLA DE EVOLUCIÓN
 function AnthropometryView({ measurements, setMeasurements, profile, darkMode, showToast }) {
-  const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], weight: profile.weight || 71.45, waist: 75, neck: 36, hips: 93 });
+  const [form, setForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    weight: profile.weight || 71.45,
+    chest: 93.5, hips: 93, waist: 75, rightThigh: 58, leftThigh: 58.5, rightCalf: 37.5, leftCalf: 37.5, neck: 36
+  });
+
+  const calculateBodyFat = (waist, neck, height, hips, gender) => {
+    if (!waist || !neck || !height) return 0;
+    const h = Number(height), w = Number(waist), n = Number(neck), hp = Number(hips) || 90;
+    if (gender === 'male') {
+      const bf = 495 / (1.0324 - 0.19077 * Math.log10(w - n) + 0.15456 * Math.log10(h)) - 450;
+      return Math.max(3, Math.min(50, Math.round(bf * 10) / 10));
+    } else {
+      const bf = 495 / (1.29579 - 0.35004 * Math.log10(w + hp - n) + 0.22100 * Math.log10(h)) - 450;
+      return Math.max(8, Math.min(50, Math.round(bf * 10) / 10));
+    }
+  };
 
   const handleAdd = (e) => {
     e.preventDefault();
-    setMeasurements(prev => [{ ...form, id: 'm_' + Date.now() }, ...prev]);
-    showToast('Registro de medidas guardado');
+    const bf = calculateBodyFat(form.waist, form.neck, profile.height, form.hips, profile.gender);
+    const entry = { ...form, id: 'm_' + Date.now(), bodyFat: bf };
+
+    setMeasurements(prev => {
+      const updated = [entry, ...prev];
+      return updated.sort((a, b) => new Date(b.date) - new Date(a.date));
+    });
+    showToast('Medidas antropométricas guardadas');
+  };
+
+  const handleRemoveMeasurement = (id) => {
+    setMeasurements(prev => prev.filter(m => m.id !== id));
+  };
+
+  const sortedMeasurements = [...measurements].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const chronological = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const getWeightPoints = () => {
+    if (chronological.length === 0) return '';
+    const maxW = Math.max(...chronological.map(m => Number(m.weight))) + 2;
+    const minW = Math.min(...chronological.map(m => Number(m.weight))) - 2;
+    const range = maxW - minW || 1;
+
+    return chronological.map((m, idx) => {
+      const x = (idx / Math.max(chronological.length - 1, 1)) * 260 + 30;
+      const y = 80 - ((Number(m.weight) - minW) / range) * 60;
+      return `${x},${y}`;
+    }).join(' ');
+  };
+
+  const getFatPoints = () => {
+    if (chronological.length === 0) return '';
+    const maxF = Math.max(...chronological.map(m => Number(m.bodyFat || 15))) + 3;
+    const minF = Math.min(...chronological.map(m => Number(m.bodyFat || 15))) - 3;
+    const range = maxF - minF || 1;
+
+    return chronological.map((m, idx) => {
+      const x = (idx / Math.max(chronological.length - 1, 1)) * 260 + 30;
+      const y = 80 - ((Number(m.bodyFat || 15) - minF) / range) * 60;
+      return `${x},${y}`;
+    }).join(' ');
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* GRÁFICO MULTIEJE */}
+      <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+        <div className="flex justify-between items-center">
+          <h3 className="text-xs font-bold flex items-center gap-1.5"><TrendingUp className="w-4 h-4 text-emerald-500" /> Evolución Multieje (Peso vs % Grasa)</h3>
+          <div className="flex gap-3 text-[10px] font-bold">
+            <span className="flex items-center gap-1 text-emerald-500"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block"></span> Peso (kg)</span>
+            <span className="flex items-center gap-1 text-blue-500"><span className="w-2.5 h-2.5 bg-blue-500 rounded-full inline-block"></span> Grasa (%)</span>
+          </div>
+        </div>
+
+        {chronological.length > 1 ? (
+          <div className="relative">
+            <svg viewBox="0 0 320 100" className="w-full h-32 overflow-visible">
+              <polyline points={getWeightPoints()} className="stroke-emerald-500 fill-none stroke-[2.5]" />
+              <polyline points={getFatPoints()} className="stroke-blue-500 fill-none stroke-[2.5] stroke-dasharray-[4]" />
+            </svg>
+            <div className="flex justify-between text-[9px] text-slate-400 border-t border-slate-800/20 pt-1">
+              <span>{chronological[0]?.date}</span>
+              <span>{chronological[chronological.length - 1]?.date}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 py-4 text-center">Registra al menos 2 entradas con distinta fecha para trazar el gráfico.</p>
+        )}
+      </div>
+
+      {/* FORMULARIO COMPLETO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico</h2>
         <form onSubmit={handleAdd} className="space-y-3 text-xs">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2" />
-            <input type="number" step="0.1" placeholder="Peso kg" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2" />
-            <input type="number" step="0.5" placeholder="Cintura cm" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div><label className="block text-slate-400 mb-1">Fecha</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Peso (kg)</label><input type="number" step="0.05" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Cuello (cm)</label><input type="number" step="0.5" value={form.neck} onChange={e => setForm({...form, neck: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Pecho (cm)</label><input type="number" step="0.5" value={form.chest} onChange={e => setForm({...form, chest: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Cintura (cm)</label><input type="number" step="0.5" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Cadera (cm)</label><input type="number" step="0.5" value={form.hips} onChange={e => setForm({...form, hips: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Muslo Dcho (cm)</label><input type="number" step="0.5" value={form.rightThigh} onChange={e => setForm({...form, rightThigh: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Muslo Izq (cm)</label><input type="number" step="0.5" value={form.leftThigh} onChange={e => setForm({...form, leftThigh: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Gemelo Dcho (cm)</label><input type="number" step="0.5" value={form.rightCalf} onChange={e => setForm({...form, rightCalf: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Gemelo Izq (cm)</label><input type="number" step="0.5" value={form.leftCalf} onChange={e => setForm({...form, leftCalf: e.target.value})} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2 py-1.5 font-semibold" /></div>
           </div>
-          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl">Guardar Medidas</button>
+          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">Guardar Medidas</button>
         </form>
+      </div>
+
+      {/* TABLA DE EVOLUCIÓN COMPLETA */}
+      <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Tabla de Evolución de Perímetros (cm)</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs min-w-[600px]">
+            <thead>
+              <tr className="border-b border-slate-800/20 text-[10px] text-slate-400 uppercase">
+                <th className="p-2">Fecha</th>
+                <th className="p-2">Peso</th>
+                <th className="p-2">%Grasa</th>
+                <th className="p-2">Cintura</th>
+                <th className="p-2">Pecho</th>
+                <th className="p-2">Cadera</th>
+                <th className="p-2">Muslos (D/I)</th>
+                <th className="p-2">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/10 font-semibold">
+              {sortedMeasurements.map((m) => (
+                <tr key={m.id || m.date}>
+                  <td className="p-2 font-bold">{m.date}</td>
+                  <td className="p-2 text-emerald-500 font-bold">{m.weight} kg</td>
+                  <td className="p-2 text-blue-500 font-bold">{m.bodyFat}%</td>
+                  <td className="p-2">{m.waist} cm</td>
+                  <td className="p-2">{m.chest} cm</td>
+                  <td className="p-2">{m.hips} cm</td>
+                  <td className="p-2">{m.rightThigh} / {m.leftThigh} cm</td>
+                  <td className="p-2">
+                    <button onClick={() => handleRemoveMeasurement(m.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
 
+// 5. MET & MACROS COMPLETO
 function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal, darkMode, showToast }) {
-  const handleChange = (e) => setProfile(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({ ...prev, [name]: value }));
+  };
+
+  const targetProteinGrams = Math.round((fixedBaseTargetKcal * (profile.proteinPct / 100)) / 4);
+  const targetCarbsGrams = Math.round((fixedBaseTargetKcal * (profile.carbsPct / 100)) / 4);
+  const targetFatGrams = Math.round((fixedBaseTargetKcal * (profile.fatPct / 100)) / 9);
 
   return (
     <div className="space-y-5">
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-        <h2 className="text-sm font-bold flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500" /> Configuración de Macros y MET</h2>
-        <div className="grid grid-cols-2 gap-3 text-xs">
-          <input type="number" name="weight" value={profile.weight} onChange={handleChange} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2" />
-          <input type="number" name="height" value={profile.height} onChange={handleChange} className="bg-slate-500/10 border border-slate-500/20 rounded-xl p-2" />
+        <h2 className="text-sm font-bold flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500" /> Datos Corporales y Metabolismo Fijo</h2>
+
+        <div className="space-y-3 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div><label className="block text-slate-400 font-semibold mb-1">Peso (kg)</label><input type="number" step="0.1" name="weight" value={profile.weight} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
+            <div><label className="block text-slate-400 font-semibold mb-1">Altura (cm)</label><input type="number" name="height" value={profile.height} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
+            <div><label className="block text-slate-400 font-semibold mb-1">Edad</label><input type="number" name="age" value={profile.age} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-400 font-semibold mb-1">Factor Actividad (NEAT)</label>
+              <select name="activity" value={profile.activity} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
+                <option value={1.2}>Sedentario (1.2)</option>
+                <option value={1.375}>Ligeramente Activo (1.375)</option>
+                <option value={1.55}>Moderadamente Activo (1.55)</option>
+                <option value={1.725}>Muy Activo (1.725)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-400 font-semibold mb-1">Objetivo Nutricional</label>
+              <select name="goal" value={profile.goal} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
+                <option value="deficit">Déficit Calórico</option>
+                <option value="maintenance">Mantenimiento</option>
+                <option value="surplus">Superávit Calórico</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={`p-5 rounded-3xl border shadow-sm space-y-3 text-xs ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+        <h3 className="text-xs font-bold">Ajuste Porcentual de Macronutrientes (%)</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-rose-500/10 p-3 rounded-2xl border border-rose-500/20 text-center">
+            <label className="block text-rose-500 font-bold mb-1">Proteínas %</label>
+            <input type="number" name="proteinPct" value={profile.proteinPct} onChange={handleChange} className="w-full bg-slate-500/10 border border-rose-500/30 rounded-xl py-1 text-center font-bold text-rose-500" />
+            <span className="text-[10px] text-rose-400 font-semibold block mt-1">{targetProteinGrams} g/día</span>
+          </div>
+
+          <div className="bg-amber-500/10 p-3 rounded-2xl border border-amber-500/20 text-center">
+            <label className="block text-amber-500 font-bold mb-1">Carbos %</label>
+            <input type="number" name="carbsPct" value={profile.carbsPct} onChange={handleChange} className="w-full bg-slate-500/10 border border-amber-500/30 rounded-xl py-1 text-center font-bold text-amber-500" />
+            <span className="text-[10px] text-amber-400 font-semibold block mt-1">{targetCarbsGrams} g/día</span>
+          </div>
+
+          <div className="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/20 text-center">
+            <label className="block text-blue-500 font-bold mb-1">Grasas %</label>
+            <input type="number" name="fatPct" value={profile.fatPct} onChange={handleChange} className="w-full bg-slate-500/10 border border-blue-500/30 rounded-xl py-1 text-center font-bold text-blue-500" />
+            <span className="text-[10px] text-blue-400 font-semibold block mt-1">{targetFatGrams} g/día</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl space-y-2 text-xs border border-slate-800">
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">1. Metabolismo Basal (BMR)</span>
+          <span className="font-bold">{Math.round(bmr)} kcal</span>
+        </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">2. Actividad Diaria / NEAT</span>
+          <span className="font-bold">+{Math.round(neatKcal)} kcal</span>
+        </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">3. Efecto Térmico Alimentos (TEF 10%)</span>
+          <span className="font-bold">+{Math.round(tefKcal)} kcal</span>
+        </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal})</span>
+          <span className="font-bold text-emerald-400">{Math.round(goalAdjustment)} kcal</span>
+        </div>
+        <div className="flex justify-between pt-1">
+          <span className="text-emerald-400 font-bold">MET BASE FIJO DIARIO</span>
+          <span className="text-lg font-extrabold text-emerald-400">{fixedBaseTargetKcal} kcal</span>
         </div>
       </div>
     </div>
