@@ -7,11 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      manifestFilename: 'manifest.webmanifest',
-      workbox: {
-        cleanupOutdatedCaches: true,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
-      },
+      injectRegister: 'auto',
       manifest: {
         name: 'NutriPlan PWA',
         short_name: 'NutriPlan',
@@ -27,7 +23,7 @@ export default defineConfig({
             sizes: '192x192 512x512',
             type: 'image/svg+xml',
             purpose: 'any maskable'
-          },
+          }
         ]
       }
     })
