@@ -17,13 +17,9 @@ import {
   Dumbbell,
   Grid,
   List,
-  TrendingUp,
-  Percent,
-  ChevronLeft,
-  ChevronRight
+  TrendingUp
 } from 'lucide-react';
 
-// Recetas Iniciales
 const INITIAL_RECIPES = [
   {
     id: 'r1',
@@ -75,11 +71,9 @@ const INITIAL_RECIPES = [
   }
 ];
 
-// Helper para obtener los 7 días de la semana actual con fecha real
 function getCurrentWeekDays(baseDate = new Date()) {
   const current = new Date(baseDate);
   const dayOfWeek = current.getDay();
-  // Ajustar para que Lunes sea el primer día
   const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(current);
   monday.setDate(current.getDate() + distanceToMonday);
@@ -110,16 +104,20 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('plan');
   const [weekDays] = useState(() => getCurrentWeekDays());
 
-  // Recetas
+  // CLAVES PERSISTENTES FIJAS (Sin sufijos de versión para no perder datos nunca)
   const [recipes, setRecipes] = useState(() => {
-    const saved = localStorage.getItem('nutri_recipes_v6');
-    return saved ? JSON.parse(saved) : INITIAL_RECIPES;
+    const saved = localStorage.getItem('nutri_app_recipes');
+    if (saved) return JSON.parse(saved);
+    // Migración automática de versiones anteriores si existen
+    const v6 = localStorage.getItem('nutri_recipes_v6');
+    return v6 ? JSON.parse(v6) : INITIAL_RECIPES;
   });
 
-  // Perfil
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem('nutri_profile_v6');
-    return saved ? JSON.parse(saved) : {
+    const saved = localStorage.getItem('nutri_app_profile');
+    if (saved) return JSON.parse(saved);
+    const v6 = localStorage.getItem('nutri_profile_v6');
+    return v6 ? JSON.parse(v6) : {
       weight: 71.45,
       height: 175,
       age: 30,
@@ -133,18 +131,18 @@ export default function App() {
     };
   });
 
-  // Registro de Deportes Por Fecha (key = YYYY-MM-DD)
   const [sportsLog, setSportsLog] = useState(() => {
-    const saved = localStorage.getItem('nutri_sports_v6');
-    return saved ? JSON.parse(saved) : [
-      { id: 's1', dateKey: getCurrentWeekDays()[0].key, type: 'Gimnasio', calories: 250 }
-    ];
+    const saved = localStorage.getItem('nutri_app_sports');
+    if (saved) return JSON.parse(saved);
+    const v6 = localStorage.getItem('nutri_sports_v6');
+    return v6 ? JSON.parse(v6) : [];
   });
 
-  // Medidas Antropométricas Ordenadas por Fecha
   const [measurements, setMeasurements] = useState(() => {
-    const saved = localStorage.getItem('nutri_measurements_v6');
-    return saved ? JSON.parse(saved) : [
+    const saved = localStorage.getItem('nutri_app_measurements');
+    if (saved) return JSON.parse(saved);
+    const v6 = localStorage.getItem('nutri_measurements_v6');
+    return v6 ? JSON.parse(v6) : [
       { 
         id: 'm1',
         date: '2026-02-09', 
@@ -162,20 +160,20 @@ export default function App() {
     ];
   });
 
-  // Menú Semanal indexado por fecha real (dateKey)
   const [weeklyMenu, setWeeklyMenu] = useState(() => {
-    const saved = localStorage.getItem('nutri_weekly_menu_v6');
-    return saved ? JSON.parse(saved) : {};
+    const saved = localStorage.getItem('nutri_app_menu');
+    if (saved) return JSON.parse(saved);
+    const v6 = localStorage.getItem('nutri_weekly_menu_v6');
+    return v6 ? JSON.parse(v6) : {};
   });
 
-  // Persistencia Local
-  useEffect(() => { localStorage.setItem('nutri_recipes_v6', JSON.stringify(recipes)); }, [recipes]);
-  useEffect(() => { localStorage.setItem('nutri_profile_v6', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('nutri_sports_v6', JSON.stringify(sportsLog)); }, [sportsLog]);
-  useEffect(() => { localStorage.setItem('nutri_measurements_v6', JSON.stringify(measurements)); }, [measurements]);
-  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v6', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
+  // GUARDADO PERMANENTE EN CLAVES FIJAS
+  useEffect(() => { localStorage.setItem('nutri_app_recipes', JSON.stringify(recipes)); }, [recipes]);
+  useEffect(() => { localStorage.setItem('nutri_app_profile', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('nutri_app_sports', JSON.stringify(sportsLog)); }, [sportsLog]);
+  useEffect(() => { localStorage.setItem('nutri_app_measurements', JSON.stringify(measurements)); }, [measurements]);
+  useEffect(() => { localStorage.setItem('nutri_app_menu', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
 
-  // Harris-Benedict Modificada (Cálculo Fijo Base)
   const calculateBMR = () => {
     if (profile.gender === 'male') {
       return 88.362 + (13.397 * Number(profile.weight)) + (4.799 * Number(profile.height)) - (5.677 * Number(profile.age));
@@ -196,7 +194,6 @@ export default function App() {
 
   const fixedBaseTargetKcal = Math.round(totalBaseKcal + goalAdjustment);
 
-  // Obtener gasto deportivo para una fecha clave dada
   const getSportsKcalForDate = (dateKey) => {
     return sportsLog
       .filter(s => s.dateKey === dateKey)
@@ -205,7 +202,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-28">
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30 px-5 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -225,7 +221,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 pt-6">
         {activeTab === 'plan' && (
           <PlanView 
@@ -266,7 +261,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Navegación Inferior */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-100 py-2.5 px-4 z-40">
         <div className="max-w-md mx-auto flex justify-between items-center">
           <NavButton id="plan" label="Menú Semanal" icon={<Calendar className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -297,7 +291,6 @@ function NavButton({ id, label, icon, activeTab, setActiveTab }) {
   );
 }
 
-// 1. MENÚ SEMANAL CON FECHAS REALES DE CALENDARIO
 function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDate, weekDays }) {
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena'];
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
@@ -360,7 +353,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       </div>
 
-      {/* VISTA MATRIZ CON FECHAS DE CALENDARIO */}
       {viewMode === 'matrix' && (
         <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-4">
           <table className="w-full text-left min-w-[780px] border-collapse">
@@ -424,7 +416,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       )}
 
-      {/* VISTA INDIVIDUAL POR DÍA */}
       {viewMode === 'cards' && (
         <div className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
@@ -515,7 +506,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   );
 }
 
-// 2. REGISTRO DE DEPORTES CON DÍAS DE CALENDARIO REAL
 function SportsView({ sportsLog, setSportsLog, weekDays }) {
   const [sportType, setSportType] = useState('Gimnasio');
   const [calories, setCalories] = useState('');
@@ -575,7 +565,6 @@ function SportsView({ sportsLog, setSportsLog, weekDays }) {
         </form>
       </div>
 
-      {/* Historial de Deportes */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Sesiones Registradas en la Semana</h3>
         <div className="space-y-2">
@@ -602,7 +591,6 @@ function SportsView({ sportsLog, setSportsLog, weekDays }) {
   );
 }
 
-// 3. RECETARIO CON OPCIÓN DE BORRADO DE RECETAS
 function RecipesView({ recipes, setRecipes }) {
   const [showModal, setShowModal] = useState(false);
   const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', steps: '' });
@@ -694,7 +682,6 @@ function RecipesView({ recipes, setRecipes }) {
   );
 }
 
-// 4. ANTROPOMETRÍA ORDENADA POR FECHA, GRÁFICO CRONOLÓGICO Y OPCIÓN DE BORRADO
 function AnthropometryView({ measurements, setMeasurements, profile }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -730,7 +717,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
     const bf = calculateBodyFat(form.waist, form.neck, profile.height, form.hips, profile.gender);
     const entry = { ...form, id: 'm_' + Date.now(), bodyFat: bf };
 
-    // Insertar y ordenar automáticamente por fecha descendente (más reciente primero)
     setMeasurements(prev => {
       const updated = [entry, ...prev];
       return updated.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -741,15 +727,11 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
     setMeasurements(prev => prev.filter(m => m.id !== id));
   };
 
-  // Ordenar lista de medidas para la vista de tabla
   const sortedMeasurements = [...measurements].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  // Medidas ordenadas cronológicamente (antiguo -> reciente) para el gráfico SVG
   const chronologicalForGraph = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const latestFat = sortedMeasurements[0]?.bodyFat || calculateBodyFat(75, 36, profile.height, 93, profile.gender);
 
-  // Generar Puntos para el Gráfico SVG
   const getGraphPoints = () => {
     if (chronologicalForGraph.length === 0) return '';
     const maxWeight = Math.max(...chronologicalForGraph.map(m => Number(m.weight))) + 2;
@@ -775,7 +757,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
         </div>
       </div>
 
-      {/* GRÁFICO SVG CRONOLÓGICO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
         <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
           <TrendingUp className="w-4 h-4 text-emerald-500" /> Evolución Cronológica del Peso (kg)
@@ -791,7 +772,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
         )}
       </div>
 
-      {/* FORMULARIO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico
@@ -817,7 +797,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
         </form>
       </div>
 
-      {/* HISTORIAL ORDENADO POR FECHA CON BOTÓN DE BORRADO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial de Registros</h3>
         <div className="space-y-2">
@@ -848,7 +827,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
   );
 }
 
-// 5. MET & MACROS
 function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
