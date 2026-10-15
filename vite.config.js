@@ -23,15 +23,11 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: '/nutri-planner/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
+            src: '/nutri-planner/icons.svg',
+            sizes: '192x192 512x512',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           },
-          {
-            src: '/nutri-planner/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
         ]
       }
     })
