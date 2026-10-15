@@ -1,15 +1,9 @@
 {
   "short_name": "NutriPlan",
-  "name": "Planificador Nutricional PWA",
-  "icons": [
-    {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#059669",
-  "background_color": "#f8fafc"
+  "name": "NutriPlan PWA - Planificador Nutricional",
+  "icons": [],
+  "start_url": "./",
+  "background_color": "#064e3b",
+  "theme_color": "#10b981",
+  "display": "standalone"
 }
