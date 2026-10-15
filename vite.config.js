@@ -12,14 +12,14 @@ export default defineConfig({
         name: 'NutriPlan PWA',
         short_name: 'NutriPlan',
         description: 'Planificador nutricional y de entrenamiento',
-        start_url: '/nutri-planner/',
-        scope: '/nutri-planner/',
+        start_url: './',
+        scope: './',
         theme_color: '#10b981',
         background_color: '#0f172a',
         display: 'standalone',
         icons: [
           {
-            src: '/nutri-planner/icons.svg',
+            src: 'icons.svg',
             sizes: '192x192 512x512',
             type: 'image/svg+xml',
             purpose: 'any maskable'
