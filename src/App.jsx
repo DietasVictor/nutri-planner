@@ -134,9 +134,7 @@ export default function App() {
   });
   const [toastMessage, setToastMessage] = useState('');
   
-  // Estado global para Modal de Confirmación Único
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
-
   const fileInputRef = useRef(null);
 
   const showToast = (msg) => {
@@ -172,7 +170,6 @@ export default function App() {
 
   const weekDays = getWeekDaysFromDate(getSelectedBaseDate());
 
-  // Estado Local Persistente
   const [recipes, setRecipes] = useState(() => {
     const saved = localStorage.getItem('nutri_app_recipes');
     return saved ? JSON.parse(saved) : INITIAL_RECIPES;
@@ -218,7 +215,6 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Guardado Automático
   useEffect(() => { localStorage.setItem('nutri_app_recipes', JSON.stringify(recipes)); }, [recipes]);
   useEffect(() => { localStorage.setItem('nutri_app_profile', JSON.stringify(profile)); }, [profile]);
   useEffect(() => { localStorage.setItem('nutri_app_sports', JSON.stringify(sportsLog)); }, [sportsLog]);
@@ -228,7 +224,6 @@ export default function App() {
   useEffect(() => { localStorage.setItem('nutri_app_water', JSON.stringify(waterLog)); }, [waterLog]);
   useEffect(() => { localStorage.setItem('nutri_app_adherence', JSON.stringify(adherenceLog)); }, [adherenceLog]);
 
-  // Copia de Seguridad JSON
   const exportBackup = () => {
     const backupData = { recipes, profile, sportsLog, plannedWorkouts, measurements, weeklyMenu, waterLog, adherenceLog, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -264,7 +259,6 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Cálculo MET con Fórmula Harris-Benedict por Sexo
   const calculateBMR = () => {
     const w = Number(profile.weight);
     const h = Number(profile.height);
@@ -282,8 +276,8 @@ export default function App() {
   const tefKcal = tdeeBase * 0.10;
   const totalBaseKcal = tdeeBase + tefKcal;
 
-  let goalAdjustment = 0;
   const intensityPct = Number(profile.goalIntensity || 0.15);
+  let goalAdjustment = 0;
   if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * intensityPct);
   if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * intensityPct);
 
@@ -303,7 +297,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
       <header className={`border-b sticky top-0 z-30 px-5 py-4 backdrop-blur-md transition-colors ${darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-100'}`}>
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -402,11 +395,11 @@ export default function App() {
             fixedBaseTargetKcal={fixedBaseTargetKcal} 
             darkMode={darkMode}
             showToast={showToast}
+            intensityPct={intensityPct}
           />
         )}
       </main>
 
-      {/* MODAL GLOBAL DE CONFIRMACIÓN */}
       {confirmModal.show && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 text-center ${darkMode ? 'bg-slate-900 text-white border border-slate-800' : 'bg-white shadow-xl'}`}>
@@ -453,7 +446,6 @@ function NavButton({ id, label, icon, activeTab, setActiveTab, darkMode }) {
   );
 }
 
-// HIDRATACIÓN
 function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, darkMode, showToast }) {
   const targetWaterMl = Math.round(Number(profile.weight || 70) * 35);
   const currentGlasses = waterLog[selectedDateKey] || 0;
@@ -499,7 +491,6 @@ function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, dark
   );
 }
 
-// 1. MENÚ SEMANAL (INCLUYE ENTRENAMIENTOS PLANIFICADOS SINCRONIZADOS)
 function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts, fixedBaseTargetKcal, getSportsKcalForDate, weekDays, currentWeekOffset, setCurrentWeekOffset, adherenceLog, setAdherenceLog, waterLog, setWaterLog, darkMode, showToast, askConfirmation }) {
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena', 'Post-Cena'];
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
@@ -584,11 +575,10 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
   const selectedDayTotalKcal = fixedBaseTargetKcal + selectedDaySportsKcal;
   const selectedDayMacros = getDayMacros(selectedDayTotalKcal);
   const currentDayInfo = weekDays.find(d => d.key === selectedDateKey) || weekDays[0];
-  const selectedDayPlannedWorkouts = plannedWorkouts[selectedDateKey] || [];
+  const selectedDayPlannedWorkouts = Array.isArray(plannedWorkouts[selectedDateKey]) ? plannedWorkouts[selectedDateKey] : [];
 
   return (
     <div className="space-y-5">
-      {/* Selector de Semana */}
       <div className={`p-4 rounded-3xl border shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3 transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <div className="flex items-center gap-2">
           <button onClick={() => setCurrentWeekOffset(prev => prev - 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronLeft className="w-4 h-4" /></button>
@@ -609,7 +599,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
             <RefreshCw className="w-3.5 h-3.5" /> Auto-rellenar
           </button>
 
-          <button onClick={clearEntireMenu} className="bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 transition-colors">
+          <button onClick={clearEntireMenu} className="bg-rose-500/10 text-rose-500 border border-rose-500/25 hover:bg-rose-500/20 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 transition-colors">
             <Trash2 className="w-4 h-4" /> Borrar Menú
           </button>
 
@@ -628,7 +618,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
         </div>
       </div>
 
-      {/* Hidratación (Solo en vista Día a Día) */}
       {viewMode === 'cards' && (
         <HydrationWidget 
           profile={profile} 
@@ -640,7 +629,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
         />
       )}
 
-      {/* MATRIZ DE 7 DÍAS */}
       {viewMode === 'matrix' && (
         <div className={`overflow-x-auto rounded-3xl border shadow-sm p-4 transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
           <table className="w-full text-left min-w-[850px] border-collapse">
@@ -650,7 +638,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
                 {weekDays.map(d => {
                   const daySports = getSportsKcalForDate(d.key);
                   const dayTotal = fixedBaseTargetKcal + daySports;
-                  const dayPlanned = plannedWorkouts[d.key] || [];
+                  const dayPlanned = Array.isArray(plannedWorkouts[d.key]) ? plannedWorkouts[d.key] : [];
 
                   return (
                     <th key={d.key} className="p-2 text-center align-top">
@@ -659,7 +647,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
                       <span className="text-[10px] font-extrabold text-emerald-500 block mt-0.5">{dayTotal} kcal</span>
                       {daySports > 0 && <span className="text-[9px] text-amber-500 font-bold block">+{daySports} dep.</span>}
                       
-                      {/* Muestra entrenamientos planificados en la cabecera de la matriz */}
                       {dayPlanned.length > 0 && (
                         <div className="mt-1 space-y-0.5">
                           {dayPlanned.map((w, idx) => (
@@ -712,7 +699,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
         </div>
       )}
 
-      {/* VISTA DÍA A DÍA */}
       {viewMode === 'cards' && (
         <div className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
@@ -740,7 +726,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
               <span className="text-xs font-extrabold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full">{selectedDayTotalKcal} kcal</span>
             </div>
 
-            {/* Banner de Entrenamientos Planificados para el Día Seleccionado */}
             {selectedDayPlannedWorkouts.length > 0 && (
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-2xl text-xs space-y-1">
                 <p className="font-bold text-emerald-500 flex items-center gap-1.5"><Dumbbell className="w-3.5 h-3.5" /> Entrenamientos Programados Hoy:</p>
@@ -822,7 +807,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
         </div>
       )}
 
-      {/* Modal Lista de Compra */}
       {showGroceryModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className={`rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[80vh] overflow-y-auto ${darkMode ? 'bg-slate-900 text-white' : 'bg-white'}`}>
@@ -847,7 +831,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts
   );
 }
 
-// 2. REGISTRO DE DEPORTES + MULTI-ENTRENAMIENTO PLANIFICADO DIARIO
 function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkouts, weekDays, currentWeekOffset, setCurrentWeekOffset, darkMode, showToast, askConfirmation }) {
   const [sportType, setSportType] = useState('Gimnasio');
   const [calories, setCalories] = useState('');
@@ -875,9 +858,10 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
   const handleAddPlannedWorkout = (dateKey) => {
     const text = workoutInputs[dateKey]?.trim();
     if (!text) return;
+    const currentList = Array.isArray(plannedWorkouts[dateKey]) ? plannedWorkouts[dateKey] : [];
     setPlannedWorkouts(prev => ({
       ...prev,
-      [dateKey]: [...(prev[dateKey] || []), text]
+      [dateKey]: [...currentList, text]
     }));
     setWorkoutInputs(prev => ({ ...prev, [dateKey]: '' }));
     showToast('Entrenamiento añadido al plan');
@@ -886,7 +870,7 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
   const handleRemovePlannedWorkout = (dateKey, index) => {
     askConfirmation('¿Eliminar entreno del plan?', '¿Quitar este entrenamiento de la lista de planificados?', () => {
       setPlannedWorkouts(prev => {
-        const list = [...(prev[dateKey] || [])];
+        const list = Array.isArray(prev[dateKey]) ? [...prev[dateKey]] : [];
         list.splice(index, 1);
         return { ...prev, [dateKey]: list };
       });
@@ -902,19 +886,17 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
         <button onClick={() => setCurrentWeekOffset(prev => prev + 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronRight className="w-4 h-4" /></button>
       </div>
 
-      {/* PLANIFICADOR SEMANAL MULTI-ENTRENAMIENTO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-emerald-500" /> Planificación Semanal de Entrenamientos</h2>
-        <p className="text-xs text-slate-400">Puedes planificar **varios entrenamientos en un mismo día** y aparecerán automáticamente en el menú semanal:</p>
+        <p className="text-xs text-slate-400">Puedes planificar varios entrenamientos en un mismo día y aparecerán automáticamente en el menú semanal:</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
           {weekDays.map(d => {
-            const list = plannedWorkouts[d.key] || [];
+            const list = Array.isArray(plannedWorkouts[d.key]) ? plannedWorkouts[d.key] : [];
             return (
               <div key={d.key} className="p-3.5 rounded-2xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-xs">
                 <span className="font-bold block">{d.fullLabel}</span>
 
-                {/* Lista de entrenos guardados para el día */}
                 <div className="space-y-1">
                   {list.map((w, idx) => (
                     <div key={idx} className="flex justify-between items-center bg-emerald-500/10 text-emerald-500 p-2 rounded-xl font-semibold border border-emerald-500/20">
@@ -926,7 +908,6 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
                   ))}
                 </div>
 
-                {/* Input para añadir un nuevo entreno más al mismo día */}
                 <div className="flex gap-2 pt-1">
                   <input 
                     type="text" 
@@ -944,7 +925,6 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
         </div>
       </div>
 
-      {/* REGISTRO DE REGISTRO COMPLETO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><Dumbbell className="w-4 h-4 text-emerald-500" /> Registrar Sesión Deportiva Realizada</h2>
         <form onSubmit={handleAddSportsLog} className="space-y-3 text-xs">
@@ -994,7 +974,6 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
   );
 }
 
-// 3. RECETARIO
 function RecipesView({ recipes, setRecipes, darkMode, showToast, askConfirmation }) {
   const [showModal, setShowModal] = useState(false);
   const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', ingredients: '', steps: '' });
@@ -1093,7 +1072,6 @@ function RecipesView({ recipes, setRecipes, darkMode, showToast, askConfirmation
   );
 }
 
-// 4. ANTROPOMETRÍA
 function AnthropometryView({ measurements, setMeasurements, profile, darkMode, showToast, askConfirmation }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -1119,7 +1097,8 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
     const entry = { ...form, id: 'm_' + Date.now(), bodyFat: bf };
 
     setMeasurements(prev => {
-      const updated = [entry, ...prev];
+      const list = Array.isArray(prev) ? prev : [];
+      const updated = [entry, ...list];
       return updated.sort((a, b) => new Date(b.date) - new Date(a.date));
     });
     showToast('Medidas antropométricas guardadas');
@@ -1127,13 +1106,14 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
 
   const handleRemoveMeasurement = (id, date) => {
     askConfirmation('¿Eliminar registro de medidas?', `¿Eliminar los datos guardados para el ${date}?`, () => {
-      setMeasurements(prev => prev.filter(m => m.id !== id));
+      setMeasurements(prev => (Array.isArray(prev) ? prev.filter(m => m.id !== id) : []));
       showToast('Registro eliminado');
     });
   };
 
-  const sortedMeasurements = [...measurements].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const chronological = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const safeMeasurements = Array.isArray(measurements) ? measurements : [];
+  const sortedMeasurements = [...safeMeasurements].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const chronological = [...safeMeasurements].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const initial = chronological[0];
   const latest = chronological[chronological.length - 1];
@@ -1173,7 +1153,6 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
 
   return (
     <div className="space-y-6">
-      {/* GRÁFICO MULTIEJE */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold flex items-center gap-1.5"><TrendingUp className="w-4 h-4 text-emerald-500" /> Evolución Multieje (Peso vs % Grasa)</h3>
@@ -1199,7 +1178,6 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
         )}
       </div>
 
-      {/* PANEL DELTAS */}
       {chronological.length >= 2 && (
         <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
           <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-500">Progreso Total desde el primer registro</h3>
@@ -1232,7 +1210,6 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
         </div>
       )}
 
-      {/* FORMULARIO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico</h2>
         <form onSubmit={handleAdd} className="space-y-3 text-xs">
@@ -1252,7 +1229,6 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
         </form>
       </div>
 
-      {/* TABLA HISTÓRICA COMPLETA */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Tabla de Evolución de Perímetros (cm)</h3>
         <div className="overflow-x-auto">
@@ -1292,8 +1268,7 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
   );
 }
 
-// 5. MET & MACROS (CON SELECTOR DE SEXO Y PORCENTAJE DE DÉFICIT/SUPERÁVIT)
-function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal, darkMode, showToast }) {
+function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal, darkMode, showToast, intensityPct }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
@@ -1341,7 +1316,6 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
               </select>
             </div>
             
-            {/* Porcentaje de Ajuste Calórico */}
             {profile.goal !== 'maintenance' && (
               <div>
                 <label className="block text-slate-400 font-semibold mb-1">Intensidad del Ajuste (%)</label>
