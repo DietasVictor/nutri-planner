@@ -14,11 +14,12 @@ import {
   Scale,
   Settings,
   X,
-  Percent,
-  Calculator
+  Dumbbell,
+  Grid,
+  List
 } from 'lucide-react';
 
-// Base de Datos Inicial de Recetas
+// Recetas Iniciales
 const INITIAL_RECIPES = [
   {
     id: 'r1',
@@ -30,7 +31,7 @@ const INITIAL_RECIPES = [
     protein: 26,
     carbs: 6,
     fat: 9,
-    steps: ['Batir 4 claras y 1 huevo entero.', 'Saltear las espinacas en una sartén antiadherente.', 'Cuajar la tortilla a fuego medio durante 3-4 minutos por lado.']
+    steps: ['Batir 4 claras y 1 huevo.', 'Saltear espinacas.', 'Cuajar la tortilla en sartén.']
   },
   {
     id: 'r2',
@@ -42,7 +43,7 @@ const INITIAL_RECIPES = [
     protein: 42,
     carbs: 65,
     fat: 10,
-    steps: ['Cocer el arroz basmati durante 10-12 minutos.', 'Saltear pechuga de pollo picada con cebolla y especias de curry.', 'Añadir 50ml de leche de coco ligera y reducir 5 minutos.']
+    steps: ['Cocer arroz basmati.', 'Saltear pechuga de pollo con especias curry.', 'Añadir leche de coco ligera.']
   },
   {
     id: 'r3',
@@ -54,7 +55,7 @@ const INITIAL_RECIPES = [
     protein: 38,
     carbs: 8,
     fat: 32,
-    steps: ['Pincelar el lomo de salmón con aceite de oliva y sal.', 'Cocinar a la plancha a fuego vivo 3 min por la parte de la piel.', 'Saltear los espárragos trigosos como guarnición.']
+    steps: ['Sazonar el salmón.', 'Cocinar a la plancha 3 min por lado.', 'Acompañar con espárragos.']
   },
   {
     id: 'r4',
@@ -66,22 +67,22 @@ const INITIAL_RECIPES = [
     protein: 15,
     carbs: 18,
     fat: 14,
-    steps: ['Servir 150g de yogur griego natural sin azúcar.', 'Añadir 15g de nueces picadas y un puñado de arándanos frescos.']
+    steps: ['Servir yogur griego sin azúcar.', 'Añadir nueces y arándanos.']
   }
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('plan');
 
-  // Estado de Recetas Persistente
+  // Recetas
   const [recipes, setRecipes] = useState(() => {
-    const saved = localStorage.getItem('nutri_recipes_v3');
+    const saved = localStorage.getItem('nutri_recipes_v4');
     return saved ? JSON.parse(saved) : INITIAL_RECIPES;
   });
 
-  // Estado del Perfil
+  // Perfil
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem('nutri_profile_v3');
+    const saved = localStorage.getItem('nutri_profile_v4');
     return saved ? JSON.parse(saved) : {
       weight: 71.45,
       height: 175,
@@ -91,15 +92,23 @@ export default function App() {
       sportsCalories: 250,
       goal: 'maintenance',
       goalIntensity: 0.15,
-      proteinPct: 25,
+      proteinPct: 30,
       carbsPct: 45,
-      fatPct: 30
+      fatPct: 25
     };
   });
 
-  // Historial Antropométrico
+  // Registro de Deportes Diarios
+  const [sportsLog, setSportsLog] = useState(() => {
+    const saved = localStorage.getItem('nutri_sports_v4');
+    return saved ? JSON.parse(saved) : [
+      { id: 's1', date: new Date().toISOString().split('T')[0], type: 'Gimnasio', calories: 250 }
+    ];
+  });
+
+  // Medidas Antropométricas
   const [measurements, setMeasurements] = useState(() => {
-    const saved = localStorage.getItem('nutri_measurements_v3');
+    const saved = localStorage.getItem('nutri_measurements_v4');
     return saved ? JSON.parse(saved) : [
       { 
         date: '2026-02-09', 
@@ -118,7 +127,7 @@ export default function App() {
 
   // Menú Semanal (5 Comidas)
   const [weeklyMenu, setWeeklyMenu] = useState(() => {
-    const saved = localStorage.getItem('nutri_weekly_menu_v3');
+    const saved = localStorage.getItem('nutri_weekly_menu_v4');
     return saved ? JSON.parse(saved) : {
       Lunes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
       Martes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
@@ -130,11 +139,12 @@ export default function App() {
     };
   });
 
-  // Persistencia Local
-  useEffect(() => { localStorage.setItem('nutri_recipes_v3', JSON.stringify(recipes)); }, [recipes]);
-  useEffect(() => { localStorage.setItem('nutri_profile_v3', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('nutri_measurements_v3', JSON.stringify(measurements)); }, [measurements]);
-  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v3', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
+  // Persistencia
+  useEffect(() => { localStorage.setItem('nutri_recipes_v4', JSON.stringify(recipes)); }, [recipes]);
+  useEffect(() => { localStorage.setItem('nutri_profile_v4', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('nutri_sports_v4', JSON.stringify(sportsLog)); }, [sportsLog]);
+  useEffect(() => { localStorage.setItem('nutri_measurements_v4', JSON.stringify(measurements)); }, [measurements]);
+  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v4', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
 
   // Harris-Benedict Modificada
   const calculateBMR = () => {
@@ -147,14 +157,14 @@ export default function App() {
 
   const bmr = calculateBMR();
   const neatKcal = bmr * (Number(profile.activity) - 1);
-  const sportsKcal = Number(profile.sportsCalories);
+  const sportsKcal = Number(profile.sportsCalories) || 0;
   const tdee = bmr + neatKcal + sportsKcal;
-  const tefKcal = tdee * 0.10; // TEF 10%
+  const tefKcal = tdee * 0.10;
   const totalBaseKcal = tdee + tefKcal;
 
   let goalAdjustment = 0;
-  if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * profile.goalIntensity);
-  if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * profile.goalIntensity);
+  if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * Number(profile.goalIntensity));
+  if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * Number(profile.goalIntensity));
 
   const targetKcal = Math.round(totalBaseKcal + goalAdjustment);
 
@@ -164,7 +174,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-28">
-      {/* Header adaptable */}
+      {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30 px-5 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -184,7 +194,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Container amplio */}
+      {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 pt-6">
         {activeTab === 'plan' && (
           <PlanView 
@@ -195,6 +205,14 @@ export default function App() {
             targetCarbs={targetCarbsGrams}
             targetFat={targetFatGrams}
             targetKcal={targetKcal}
+          />
+        )}
+        {activeTab === 'sports' && (
+          <SportsView 
+            sportsLog={sportsLog} 
+            setSportsLog={setSportsLog}
+            profile={profile}
+            setProfile={setProfile}
           />
         )}
         {activeTab === 'recipes' && <RecipesView recipes={recipes} setRecipes={setRecipes} />}
@@ -215,17 +233,21 @@ export default function App() {
             tefKcal={tefKcal}
             goalAdjustment={goalAdjustment}
             targetKcal={targetKcal} 
+            targetProteinGrams={targetProteinGrams}
+            targetCarbsGrams={targetCarbsGrams}
+            targetFatGrams={targetFatGrams}
           />
         )}
       </main>
 
-      {/* Navegación Inferior Flotante */}
+      {/* Navegación Inferior */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-100 py-2.5 px-4 z-40">
         <div className="max-w-md mx-auto flex justify-between items-center">
           <NavButton id="plan" label="Menú Semanal" icon={<Calendar className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavButton id="sports" label="Deportes" icon={<Dumbbell className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
           <NavButton id="recipes" label="Recetas" icon={<ChefHat className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
-          <NavButton id="anthropometry" label="Medidas & %Grasa" icon={<Scale className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
-          <NavButton id="profile" label="Desglose MET" icon={<Settings className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavButton id="anthropometry" label="Medidas" icon={<Scale className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <NavButton id="profile" label="MET & Macros" icon={<Settings className="w-5 h-5" />} activeTab={activeTab} setActiveTab={setActiveTab} />
         </div>
       </nav>
     </div>
@@ -249,11 +271,12 @@ function NavButton({ id, label, icon, activeTab, setActiveTab }) {
   );
 }
 
-// 1. MENÚ SEMANAL CON MODO MÓVIL Y CUADRÍCULA COMPLETA PC
+// 1. MENÚ SEMANAL CON DOS MODOS DE VISTA (TARJETAS O MATRIZ COMPLETA 7 DÍAS)
 function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCarbs, targetFat, targetKcal }) {
   const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena'];
   const [selectedDay, setSelectedDay] = useState('Lunes');
+  const [viewMode, setViewMode] = useState('matrix'); // 'cards' o 'matrix'
 
   const assignRecipe = (day, mealName, recipe) => {
     setWeeklyMenu(prev => ({
@@ -270,161 +293,270 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
   };
 
   return (
-    <div className="space-y-6">
-      {/* Selector Días para Pantallas Pequeñas */}
-      <div className="lg:hidden flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
-        {days.map((day) => (
-          <button
-            key={day}
-            onClick={() => setSelectedDay(day)}
-            className={`px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all ${
-              selectedDay === day
-                ? 'bg-slate-900 text-white shadow-md'
-                : 'bg-white text-slate-600 border border-slate-100'
+    <div className="space-y-5">
+      {/* Selector de Modo de Vista y Resumen */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-bold text-slate-900">Planificador de Menús</h2>
+          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">{targetKcal} kcal</span>
+        </div>
+
+        <div className="flex gap-1 bg-white p-1 rounded-2xl border border-slate-200">
+          <button 
+            onClick={() => setViewMode('matrix')} 
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+              viewMode === 'matrix' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            {day}
+            <Grid className="w-3.5 h-3.5" /> Vista 7 Días Rápida
           </button>
-        ))}
-      </div>
-
-      {/* Tarjeta de Resumen de Metas Nutricionales */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-        <div className="flex justify-between items-center">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Target className="w-4 h-4 text-emerald-500" />
-            Meta Diaria Recomendada
-          </h2>
-          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{targetKcal} kcal</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
-            <p className="text-[10px] uppercase font-bold text-rose-500">Proteína</p>
-            <p className="text-base font-extrabold text-rose-700">{targetProtein}g</p>
-          </div>
-          <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100">
-            <p className="text-[10px] uppercase font-bold text-amber-500">Carbohidratos</p>
-            <p className="text-base font-extrabold text-amber-700">{targetCarbs}g</p>
-          </div>
-          <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100">
-            <p className="text-[10px] uppercase font-bold text-blue-500">Grasas</p>
-            <p className="text-base font-extrabold text-blue-700">{targetFat}g</p>
-          </div>
+          <button 
+            onClick={() => setViewMode('cards')} 
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+              viewMode === 'cards' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" /> Vista por Día
+          </button>
         </div>
       </div>
 
-      {/* VISTA MÓVIL (Día Único Seleccionado) */}
-      <div className="lg:hidden space-y-3">
-        {meals.map((meal) => {
-          const currentRecipe = weeklyMenu[selectedDay]?.[meal];
-          return (
-            <div key={meal} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{meal}</span>
-                {currentRecipe && (
-                  <button onClick={() => removeRecipe(selectedDay, meal)} className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {currentRecipe ? (
-                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex justify-between items-center">
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">{currentRecipe.name}</p>
-                    <p className="text-[10px] text-slate-400">{currentRecipe.kcal} kcal | P: {currentRecipe.protein}g | C: {currentRecipe.carbs}g | G: {currentRecipe.fat}g</p>
-                  </div>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">{currentRecipe.prepTime}</span>
-                </div>
-              ) : (
-                <select 
-                  onChange={(e) => {
-                    const found = recipes.find(r => r.id === e.target.value);
-                    if (found) assignRecipe(selectedDay, meal, found);
-                  }}
-                  defaultValue=""
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 focus:outline-none"
-                >
-                  <option value="" disabled>+ Añadir a {meal}</option>
-                  {recipes.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} ({r.kcal} kcal)</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          );
-        })}
+      {/* Target Macros Resumen */}
+      <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
+          <p className="text-[10px] uppercase font-bold text-rose-500">Proteína</p>
+          <p className="text-base font-extrabold text-rose-700">{targetProtein}g</p>
+        </div>
+        <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100">
+          <p className="text-[10px] uppercase font-bold text-amber-500">Carbohidratos</p>
+          <p className="text-base font-extrabold text-amber-700">{targetCarbs}g</p>
+        </div>
+        <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100">
+          <p className="text-[10px] uppercase font-bold text-blue-500">Grasas</p>
+          <p className="text-base font-extrabold text-blue-700">{targetFat}g</p>
+        </div>
       </div>
 
-      {/* VISTA PC / TABLET (7 Días Completos en Cuadrícula Ancha) */}
-      <div className="hidden lg:grid lg:grid-cols-7 gap-3">
-        {days.map((day) => (
-          <div key={day} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold text-slate-900 text-center border-b pb-2">{day}</h3>
-            <div className="space-y-3">
-              {meals.map((meal) => {
-                const currentRecipe = weeklyMenu[day]?.[meal];
-                return (
-                  <div key={meal} className="bg-slate-50 p-2 rounded-xl text-[11px] space-y-1">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">{meal}</span>
-                    {currentRecipe ? (
-                      <div className="relative group">
-                        <p className="font-bold text-slate-800 truncate">{currentRecipe.name}</p>
-                        <p className="text-[9px] text-emerald-600 font-semibold">{currentRecipe.kcal} kcal</p>
-                        <button 
-                          onClick={() => removeRecipe(day, meal)}
-                          className="text-rose-500 text-[9px] hover:underline block mt-1"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ) : (
-                      <select 
-                        onChange={(e) => {
-                          const found = recipes.find(r => r.id === e.target.value);
-                          if (found) assignRecipe(day, meal, found);
-                        }}
-                        defaultValue=""
-                        className="w-full bg-white border border-slate-200 rounded p-1 text-[10px] text-slate-500"
-                      >
-                        <option value="" disabled>+</option>
-                        {recipes.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
+      {/* VISTA 1: MATRIZ RÁPIDA 7 DÍAS EN TABLA/GRID */}
+      {viewMode === 'matrix' && (
+        <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-4">
+          <table className="w-full text-left min-w-[700px] border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="p-2 text-xs font-bold text-slate-400 uppercase w-28">Comida</th>
+                {days.map(d => (
+                  <th key={d} className="p-2 text-xs font-bold text-slate-800 text-center">{d}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {meals.map(meal => (
+                <tr key={meal} className="hover:bg-slate-50/50">
+                  <td className="p-2.5 font-bold text-xs text-slate-600 bg-slate-50/80 rounded-l-xl">{meal}</td>
+                  {days.map(day => {
+                    const current = weeklyMenu[day]?.[meal];
+                    return (
+                      <td key={day} className="p-1.5 align-top">
+                        {current ? (
+                          <div className="bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-[10px] space-y-1 relative group">
+                            <p className="font-bold text-slate-800 truncate">{current.name}</p>
+                            <div className="flex justify-between items-center text-[9px] text-emerald-700">
+                              <span>{current.kcal} kcal</span>
+                              <button onClick={() => removeRecipe(day, meal)} className="text-rose-500 hover:underline">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <select
+                            onChange={(e) => {
+                              const found = recipes.find(r => r.id === e.target.value);
+                              if (found) assignRecipe(day, meal, found);
+                            }}
+                            defaultValue=""
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-1.5 text-[10px] text-slate-500 focus:outline-none"
+                          >
+                            <option value="" disabled>+ Receta</option>
+                            {recipes.map(r => (
+                              <option key={r.id} value={r.id}>{r.name} ({r.kcal}k)</option>
+                            ))}
+                          </select>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* VISTA 2: TARJETAS INDIVIDUALES POR DÍA */}
+      {viewMode === 'cards' && (
+        <div className="space-y-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
+            {days.map((day) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  selectedDay === day
+                    ? 'bg-slate-900 text-white shadow-md'
+                    : 'bg-white text-slate-600 border border-slate-100'
+                }`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            {meals.map((meal) => {
+              const currentRecipe = weeklyMenu[selectedDay]?.[meal];
+              return (
+                <div key={meal} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{meal}</span>
+                    {currentRecipe && (
+                      <button onClick={() => removeRecipe(selectedDay, meal)} className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
-                );
-              })}
+
+                  {currentRecipe ? (
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex justify-between items-center">
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{currentRecipe.name}</p>
+                        <p className="text-[10px] text-slate-400">{currentRecipe.kcal} kcal | P: {currentRecipe.protein}g | C: {currentRecipe.carbs}g | G: {currentRecipe.fat}g</p>
+                      </div>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">{currentRecipe.prepTime}</span>
+                    </div>
+                  ) : (
+                    <select 
+                      onChange={(e) => {
+                        const found = recipes.find(r => r.id === e.target.value);
+                        if (found) assignRecipe(selectedDay, meal, found);
+                      }}
+                      defaultValue=""
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 focus:outline-none"
+                    >
+                      <option value="" disabled>+ Añadir a {meal}</option>
+                      {recipes.map(r => (
+                        <option key={r.id} value={r.id}>{r.name} ({r.kcal} kcal)</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 2. VISTA DE REGISTRO DE DEPORTES REALIZADOS
+function SportsView({ sportsLog, setSportsLog, profile, setProfile }) {
+  const [sportType, setSportType] = useState('Gimnasio');
+  const [calories, setCalories] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const sportsOptions = ['Ciclismo', 'Carrera', 'Natación', 'Gimnasio', 'Otros'];
+
+  const handleAddSport = (e) => {
+    e.preventDefault();
+    if (!calories) return;
+
+    const newEntry = {
+      id: 's_' + Date.now(),
+      date,
+      type: sportType,
+      calories: Number(calories)
+    };
+
+    const updatedLog = [newEntry, ...sportsLog];
+    setSportsLog(updatedLog);
+
+    // Sumar automáticamente al gasto deportivo del perfil
+    const totalTodaySports = updatedLog
+      .filter(s => s.date === date)
+      .reduce((acc, curr) => acc + curr.calories, 0);
+
+    setProfile(prev => ({ ...prev, sportsCalories: totalTodaySports }));
+    setCalories('');
+  };
+
+  const handleRemove = (id) => {
+    const updated = sportsLog.filter(s => s.id !== id);
+    setSportsLog(updated);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+        <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <Dumbbell className="w-4 h-4 text-emerald-500" /> Registrar Actividad Deportiva
+        </h2>
+
+        <form onSubmit={handleAddSport} className="space-y-3 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-slate-500 font-semibold mb-1">Fecha</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold" />
+            </div>
+            <div>
+              <label className="block text-slate-500 font-semibold mb-1">Tipo de Deporte</label>
+              <select value={sportType} onChange={e => setSportType(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
+                {sportsOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-500 font-semibold mb-1">Gasto Calórico (kcal)</label>
+              <input type="number" required placeholder="300" value={calories} onChange={e => setCalories(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold" />
             </div>
           </div>
-        ))}
+
+          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">
+            + Añadir Sesión Deportiva
+          </button>
+        </form>
+      </div>
+
+      {/* Historial de Deportes */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial de Entrenamientos</h3>
+        <div className="space-y-2">
+          {sportsLog.map((s) => (
+            <div key={s.id} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
+              <div>
+                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">{s.type}</span>
+                <p className="text-slate-400 text-[10px] mt-1">{s.date}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-extrabold text-slate-800">+{s.calories} kcal</span>
+                <button onClick={() => handleRemove(s.id)} className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-// 2. RECETARIO CON FORMULARIO MODAL PARA AÑADIR NUEVAS RECETAS
+// 3. RECETARIO
 function RecipesView({ recipes, setRecipes }) {
   const [showModal, setShowModal] = useState(false);
-  const [filterDifficulty, setFilterDifficulty] = useState('All');
-
-  const [newRecipe, setNewRecipe] = useState({
-    name: '',
-    category: 'Comida',
-    prepTime: '20 min',
-    difficulty: 'Fácil',
-    kcal: '',
-    protein: '',
-    carbs: '',
-    fat: '',
-    steps: ''
-  });
+  const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', steps: '' });
 
   const handleAddRecipe = (e) => {
     e.preventDefault();
     if (!newRecipe.name || !newRecipe.kcal) return;
-
     const created = {
       id: 'r_' + Date.now(),
       name: newRecipe.name,
@@ -435,17 +567,11 @@ function RecipesView({ recipes, setRecipes }) {
       protein: Number(newRecipe.protein) || 0,
       carbs: Number(newRecipe.carbs) || 0,
       fat: Number(newRecipe.fat) || 0,
-      steps: newRecipe.steps ? newRecipe.steps.split('\n') : ['Añadir ingrediente y cocinar.']
+      steps: newRecipe.steps ? newRecipe.steps.split('\n') : ['Cocinar e integrar ingredientes.']
     };
-
     setRecipes(prev => [created, ...prev]);
     setShowModal(false);
-    setNewRecipe({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', steps: '' });
   };
-
-  const filtered = filterDifficulty === 'All' 
-    ? recipes 
-    : recipes.filter(r => r.difficulty === filterDifficulty);
 
   return (
     <div className="space-y-4">
@@ -453,118 +579,47 @@ function RecipesView({ recipes, setRecipes }) {
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <ChefHat className="w-4 h-4 text-emerald-500" /> Base de Datos de Recetas
         </h2>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 shadow-md shadow-emerald-200"
-        >
+        <button onClick={() => setShowModal(true)} className="bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1">
           <Plus className="w-4 h-4" /> Nueva Receta
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((recipe) => (
-          <div key={recipe.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{recipe.category}</span>
-                  <h3 className="text-sm font-bold text-slate-900 mt-1">{recipe.name}</h3>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  recipe.difficulty === 'Fácil' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {recipe.difficulty}
-                </span>
+        {recipes.map((recipe) => (
+          <div key={recipe.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{recipe.category}</span>
+                <h3 className="text-sm font-bold text-slate-900 mt-1">{recipe.name}</h3>
               </div>
-
-              <div className="grid grid-cols-4 gap-1.5 bg-slate-50 p-2.5 rounded-2xl text-center text-[10px] my-3">
-                <div><p className="text-slate-400">Kcal</p><p className="font-bold text-slate-700">{recipe.kcal}</p></div>
-                <div><p className="text-rose-500">Prot</p><p className="font-bold text-slate-700">{recipe.protein}g</p></div>
-                <div><p className="text-amber-500">Carb</p><p className="font-bold text-slate-700">{recipe.carbs}g</p></div>
-                <div><p className="text-blue-500">Grasa</p><p className="font-bold text-slate-700">{recipe.fat}g</p></div>
-              </div>
-
-              <div className="space-y-1 text-xs text-slate-500">
-                <p className="font-bold text-slate-700 text-[11px]">Pasos:</p>
-                <ol className="list-decimal list-inside space-y-0.5 text-[11px]">
-                  {recipe.steps.map((step, idx) => (
-                    <li key={idx}>{step}</li>
-                  ))}
-                </ol>
-              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{recipe.difficulty}</span>
             </div>
-            <p className="text-[10px] text-slate-400 flex items-center gap-1 pt-2 border-t">
-              <Clock className="w-3 h-3" /> Tiempo de elaboración: {recipe.prepTime}
-            </p>
+            <div className="grid grid-cols-4 gap-1 bg-slate-50 p-2 rounded-xl text-center text-[10px]">
+              <div><p className="text-slate-400">Kcal</p><p className="font-bold">{recipe.kcal}</p></div>
+              <div><p className="text-rose-500">Prot</p><p className="font-bold">{recipe.protein}g</p></div>
+              <div><p className="text-amber-500">Carb</p><p className="font-bold">{recipe.carbs}g</p></div>
+              <div><p className="text-blue-500">Grasa</p><p className="font-bold">{recipe.fat}g</p></div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Modal para Crear Nueva Receta */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Añadir Nueva Receta</h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-sm font-bold">Añadir Receta</h3>
+              <button onClick={() => setShowModal(false)}><X className="w-5 h-5" /></button>
             </div>
-
             <form onSubmit={handleAddRecipe} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-500 font-semibold mb-1">Nombre de la Receta</label>
-                <input type="text" required value={newRecipe.name} onChange={e => setNewRecipe({...newRecipe, name: e.target.value})} placeholder="Ej. Arroz con Atún" className="w-full bg-slate-50 border rounded-xl px-3 py-2" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Categoría</label>
-                  <select value={newRecipe.category} onChange={e => setNewRecipe({...newRecipe, category: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-2">
-                    <option value="Desayuno">Desayuno</option>
-                    <option value="Media Mañana">Media Mañana</option>
-                    <option value="Comida">Comida</option>
-                    <option value="Merienda">Merienda</option>
-                    <option value="Cena">Cena</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Dificultad</label>
-                  <select value={newRecipe.difficulty} onChange={e => setNewRecipe({...newRecipe, difficulty: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-2">
-                    <option value="Fácil">Fácil</option>
-                    <option value="Media">Media</option>
-                    <option value="Difícil">Difícil</option>
-                  </select>
-                </div>
-              </div>
-
+              <input type="text" required placeholder="Nombre" value={newRecipe.name} onChange={e => setNewRecipe({...newRecipe, name: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-3 py-2" />
               <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1">Kcal</label>
-                  <input type="number" required value={newRecipe.kcal} onChange={e => setNewRecipe({...newRecipe, kcal: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" />
-                </div>
-                <div>
-                  <label className="block text-rose-500 font-semibold mb-1">Prot(g)</label>
-                  <input type="number" value={newRecipe.protein} onChange={e => setNewRecipe({...newRecipe, protein: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" />
-                </div>
-                <div>
-                  <label className="block text-amber-500 font-semibold mb-1">Carb(g)</label>
-                  <input type="number" value={newRecipe.carbs} onChange={e => setNewRecipe({...newRecipe, carbs: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" />
-                </div>
-                <div>
-                  <label className="block text-blue-500 font-semibold mb-1">Fat(g)</label>
-                  <input type="number" value={newRecipe.fat} onChange={e => setNewRecipe({...newRecipe, fat: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" />
-                </div>
+                <input type="number" required placeholder="Kcal" value={newRecipe.kcal} onChange={e => setNewRecipe({...newRecipe, kcal: e.target.value})} className="bg-slate-50 border rounded-xl px-2 py-1.5" />
+                <input type="number" placeholder="Prot" value={newRecipe.protein} onChange={e => setNewRecipe({...newRecipe, protein: e.target.value})} className="bg-slate-50 border rounded-xl px-2 py-1.5" />
+                <input type="number" placeholder="Carb" value={newRecipe.carbs} onChange={e => setNewRecipe({...newRecipe, carbs: e.target.value})} className="bg-slate-50 border rounded-xl px-2 py-1.5" />
+                <input type="number" placeholder="Fat" value={newRecipe.fat} onChange={e => setNewRecipe({...newRecipe, fat: e.target.value})} className="bg-slate-50 border rounded-xl px-2 py-1.5" />
               </div>
-
-              <div>
-                <label className="block text-slate-500 font-semibold mb-1">Pasos de elaboración (un paso por línea)</label>
-                <textarea rows="3" value={newRecipe.steps} onChange={e => setNewRecipe({...newRecipe, steps: e.target.value})} placeholder="Paso 1...&#10;Paso 2..." className="w-full bg-slate-50 border rounded-xl px-3 py-2"></textarea>
-              </div>
-
-              <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">
-                Guardar Receta
-              </button>
+              <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl">Guardar</button>
             </form>
           </div>
         </div>
@@ -573,122 +628,62 @@ function RecipesView({ recipes, setRecipes }) {
   );
 }
 
-// 3. ANTROPOMETRÍA AMPLIADA CON FÓRMULA DE % DE GRASA (US NAVY)
+// 4. ANTROPOMETRÍA
 function AnthropometryView({ measurements, setMeasurements, profile }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     weight: profile.weight || 71.45,
-    chest: 93.5,
-    hips: 93,
-    waist: 75,
-    rightThigh: 58,
-    leftThigh: 58.5,
-    rightCalf: 37.5,
-    leftCalf: 37.5,
-    neck: 36
+    chest: 93.5, hips: 93, waist: 75, rightThigh: 58, leftThigh: 58.5, rightCalf: 37.5, leftCalf: 37.5, neck: 36
   });
 
-  // Cálculo de % de Grasa (US Navy Method)
   const calculateBodyFat = (waist, neck, height, hips, gender) => {
     if (!waist || !neck || !height) return 0;
-    const h = Number(height);
-    const w = Number(waist);
-    const n = Number(neck);
-    const hp = Number(hips) || 90;
-
+    const h = Number(height), w = Number(waist), n = Number(neck), hp = Number(hips) || 90;
     if (gender === 'male') {
       const bf = 495 / (1.0324 - 0.19077 * Math.log10(w - n) + 0.15456 * Math.log10(h)) - 450;
       return Math.max(3, Math.min(50, Math.round(bf * 10) / 10));
-    } else {
-      const bf = 495 / (1.29579 - 0.35004 * Math.log10(w + hp - n) + 0.22100 * Math.log10(h)) - 450;
-      return Math.max(8, Math.min(50, Math.round(bf * 10) / 10));
     }
+    return 15;
   };
 
   const handleAdd = (e) => {
     e.preventDefault();
     const bf = calculateBodyFat(form.waist, form.neck, profile.height, form.hips, profile.gender);
-    const entry = { ...form, bodyFat: bf };
-    setMeasurements(prev => [entry, ...prev]);
+    setMeasurements(prev => [{ ...form, bodyFat: bf }, ...prev]);
   };
 
-  const latestFat = measurements[0] 
-    ? calculateBodyFat(measurements[0].waist, measurements[0].neck, profile.height, measurements[0].hips, profile.gender)
-    : calculateBodyFat(75, 36, profile.height, 93, profile.gender);
-
   return (
-    <div className="space-y-6">
-      {/* Indicador % Grasa Corporal Estimado */}
-      <div className="bg-emerald-950 text-white p-5 rounded-3xl shadow-xl flex justify-between items-center">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Estimación % Grasa Corporal (US Navy)</span>
-          <p className="text-xs text-emerald-200/70 mt-0.5">Calculado con Cintura, Cuello y Altura</p>
-        </div>
-        <div className="text-right">
-          <span className="text-2xl font-extrabold text-emerald-400">{latestFat}%</span>
-        </div>
-      </div>
-
+    <div className="space-y-5">
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <Scale className="w-4 h-4 text-emerald-500" /> Registro Completo de Medidas
+          <Scale className="w-4 h-4 text-emerald-500" /> Registro Antropométrico
         </h2>
-
         <form onSubmit={handleAdd} className="space-y-3 text-xs">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div><label className="block text-slate-400 mb-1">Fecha</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Peso (kg)</label><input type="number" step="0.05" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Cuello (cm)</label><input type="number" step="0.5" value={form.neck} onChange={e => setForm({...form, neck: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Pecho (cm)</label><input type="number" step="0.5" value={form.chest} onChange={e => setForm({...form, chest: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Cintura (cm)</label><input type="number" step="0.5" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Cadera (cm)</label><input type="number" step="0.5" value={form.hips} onChange={e => setForm({...form, hips: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Muslo Dcho (cm)</label><input type="number" step="0.5" value={form.rightThigh} onChange={e => setForm({...form, rightThigh: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Muslo Izq (cm)</label><input type="number" step="0.5" value={form.leftThigh} onChange={e => setForm({...form, leftThigh: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Gemelo Dcho (cm)</label><input type="number" step="0.5" value={form.rightCalf} onChange={e => setForm({...form, rightCalf: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
-            <div><label className="block text-slate-400 mb-1">Gemelo Izq (cm)</label><input type="number" step="0.5" value={form.leftCalf} onChange={e => setForm({...form, leftCalf: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div><label className="text-slate-400">Peso (kg)</label><input type="number" step="0.1" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" /></div>
+            <div><label className="text-slate-400">Cintura (cm)</label><input type="number" step="0.5" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" /></div>
+            <div><label className="text-slate-400">Cuello (cm)</label><input type="number" step="0.5" value={form.neck} onChange={e => setForm({...form, neck: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" /></div>
           </div>
-
-          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">
-            Guardar Medidas
-          </button>
+          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl">Guardar Registro</button>
         </form>
-      </div>
-
-      {/* Historial de Medidas */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial</h3>
-        <div className="space-y-2">
-          {measurements.map((m, idx) => (
-            <div key={idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
-              <div>
-                <p className="font-bold text-slate-800">{m.date}</p>
-                <p className="text-[10px] text-slate-400">Cin: {m.waist}cm | Pecho: {m.chest}cm | Muslos: {m.rightThigh}/{m.leftThigh}cm</p>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-extrabold text-emerald-600 block">{m.weight} kg</span>
-                <span className="text-[10px] text-slate-500 font-semibold">{m.bodyFat || latestFat}% grasa</span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
 }
 
-// 4. DESGLOSE METABÓLICO COMPLETO
-function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, goalAdjustment, targetKcal }) {
+// 5. AJUSTE DE REQUERIMIENTOS, GASTO DEPORTIVO EDITABLE Y PORCENTAJES DE MACROS
+function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, goalAdjustment, targetKcal, targetProteinGrams, targetCarbsGrams, targetFatGrams }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div className="space-y-6">
-      {/* Ajustes del Perfil */}
+    <div className="space-y-5">
+      {/* Ajustes MET & Gasto Deportivo Editable */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-emerald-500" /> Datos Corporales y Objetivos
+          <Activity className="w-4 h-4 text-emerald-500" /> Parámetros Energéticos
         </h2>
 
         <div className="space-y-3 text-xs">
@@ -700,7 +695,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-500 font-semibold mb-1">Actividad Diaria (NEAT)</label>
+              <label className="block text-slate-500 font-semibold mb-1">Factor Actividad (NEAT)</label>
               <select name="activity" value={profile.activity} onChange={handleChange} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
                 <option value={1.2}>Sedentario (1.2)</option>
                 <option value={1.375}>Ligeramente Activo (1.375)</option>
@@ -708,51 +703,85 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, 
                 <option value={1.725}>Muy Activo (1.725)</option>
               </select>
             </div>
+
+            {/* CAMPO EDITABLE DE GASTO DEPORTIVO ESTIMADO */}
             <div>
-              <label className="block text-slate-500 font-semibold mb-1">Objetivo Nutricional</label>
-              <select name="goal" value={profile.goal} onChange={handleChange} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
-                <option value="deficit">Déficit Calórico</option>
-                <option value="maintenance">Mantenimiento</option>
-                <option value="surplus">Superávit Calórico</option>
-              </select>
+              <label className="block text-slate-500 font-semibold mb-1">Gasto Deportivo Estimado (kcal)</label>
+              <input 
+                type="number" 
+                name="sportsCalories" 
+                value={profile.sportsCalories} 
+                onChange={handleChange} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* TARJETA DE DESGLOSE CALÓRICO TOTALMENTE DETALLADO */}
-      <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl space-y-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-          <Calculator className="w-4 h-4" /> Desglose Energético Completo
-        </h3>
+      {/* AJUSTADOR PORCENTUAL DE MACRONUTRIENTES */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3 text-xs">
+        <h3 className="text-xs font-bold text-slate-900">Ajuste Porcentual de Macronutrientes (%)</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100 text-center">
+            <label className="block text-rose-600 font-bold mb-1">Proteínas %</label>
+            <input 
+              type="number" 
+              name="proteinPct" 
+              value={profile.proteinPct} 
+              onChange={handleChange} 
+              className="w-full bg-white border border-rose-200 rounded-xl py-1 text-center font-bold text-rose-700" 
+            />
+            <span className="text-[10px] text-rose-500 font-semibold block mt-1">{targetProteinGrams} g/día</span>
+          </div>
 
-        <div className="space-y-2.5 text-xs">
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">1. Metabolismo Basal (BMR - Harris-Benedict)</span>
-            <span className="font-bold text-slate-200">{Math.round(bmr)} kcal</span>
+          <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 text-center">
+            <label className="block text-amber-600 font-bold mb-1">Carbos %</label>
+            <input 
+              type="number" 
+              name="carbsPct" 
+              value={profile.carbsPct} 
+              onChange={handleChange} 
+              className="w-full bg-white border border-amber-200 rounded-xl py-1 text-center font-bold text-amber-700" 
+            />
+            <span className="text-[10px] text-amber-500 font-semibold block mt-1">{targetCarbsGrams} g/día</span>
           </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">2. Actividad Diaria / NEAT</span>
-            <span className="font-bold text-slate-200">+{Math.round(neatKcal)} kcal</span>
+
+          <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center">
+            <label className="block text-blue-600 font-bold mb-1">Grasas %</label>
+            <input 
+              type="number" 
+              name="fatPct" 
+              value={profile.fatPct} 
+              onChange={handleChange} 
+              className="w-full bg-white border border-blue-200 rounded-xl py-1 text-center font-bold text-blue-700" 
+            />
+            <span className="text-[10px] text-blue-500 font-semibold block mt-1">{targetFatGrams} g/día</span>
           </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">3. Gasto Deportivo Estimado</span>
-            <span className="font-bold text-slate-200">+{sportsKcal} kcal</span>
-          </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">4. Efecto Térmico Alimentos (TEF 10%)</span>
-            <span className="font-bold text-slate-200">+{Math.round(tefKcal)} kcal</span>
-          </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">5. Ajuste por Objetivo ({profile.goal})</span>
-            <span className={`font-bold ${goalAdjustment < 0 ? 'text-rose-400' : goalAdjustment > 0 ? 'text-emerald-400' : 'text-slate-200'}`}>
-              {Math.round(goalAdjustment)} kcal
-            </span>
-          </div>
-          <div className="flex justify-between pt-2 items-baseline">
-            <span className="text-emerald-400 font-extrabold text-sm">TOTAL CALÓRICO OBJETIVO</span>
-            <span className="text-xl font-extrabold text-emerald-400">{targetKcal} kcal</span>
-          </div>
+        </div>
+      </div>
+
+      {/* DESGLOSE DESCRIPTIVO DE CALORÍAS */}
+      <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl space-y-2 text-xs">
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">1. Metabolismo Basal (BMR)</span>
+          <span className="font-bold">{Math.round(bmr)} kcal</span>
+        </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">2. Actividad Diaria / NEAT</span>
+          <span className="font-bold">+{Math.round(neatKcal)} kcal</span>
+        </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">3. Gasto Deportivo Estimado</span>
+          <span className="font-bold">+{sportsKcal} kcal</span>
+        </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">4. Efecto Térmico Alimentos (TEF 10%)</span>
+          <span className="font-bold">+{Math.round(tefKcal)} kcal</span>
+        </div>
+        <div className="flex justify-between pt-1">
+          <span className="text-emerald-400 font-bold">OBJETIVO DIARIO FINAL</span>
+          <span className="text-lg font-extrabold text-emerald-400">{targetKcal} kcal</span>
         </div>
       </div>
     </div>
