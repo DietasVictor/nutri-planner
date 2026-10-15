@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Utensils, 
   Calendar as CalendarIcon, 
@@ -21,10 +21,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ShoppingCart,
-  Droplet
+  Download,
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 
-// Recetas Iniciales
 const INITIAL_RECIPES = [
   {
     id: 'r1',
@@ -80,7 +81,6 @@ const INITIAL_RECIPES = [
   }
 ];
 
-// Generador de días para cualquier fecha semanal dada
 function getWeekDaysFromDate(baseDate) {
   const current = new Date(baseDate);
   const dayOfWeek = current.getDay();
@@ -114,8 +114,8 @@ function getWeekDaysFromDate(baseDate) {
 export default function App() {
   const [activeTab, setActiveTab] = useState('plan');
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+  const fileInputRef = useRef(null);
 
-  // Fecha base ajustada por la navegación entre semanas
   const getSelectedBaseDate = () => {
     const d = new Date();
     d.setDate(d.getDate() + currentWeekOffset * 7);
@@ -124,7 +124,7 @@ export default function App() {
 
   const weekDays = getWeekDaysFromDate(getSelectedBaseDate());
 
-  // Claves Fijas en LocalStorage
+  // Claves Fijas con Carga Segura
   const [recipes, setRecipes] = useState(() => {
     const saved = localStorage.getItem('nutri_app_recipes');
     return saved ? JSON.parse(saved) : INITIAL_RECIPES;
@@ -176,12 +176,53 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Guardado
+  // Guardado Automático Persistente
   useEffect(() => { localStorage.setItem('nutri_app_recipes', JSON.stringify(recipes)); }, [recipes]);
   useEffect(() => { localStorage.setItem('nutri_app_profile', JSON.stringify(profile)); }, [profile]);
   useEffect(() => { localStorage.setItem('nutri_app_sports', JSON.stringify(sportsLog)); }, [sportsLog]);
   useEffect(() => { localStorage.setItem('nutri_app_measurements', JSON.stringify(measurements)); }, [measurements]);
   useEffect(() => { localStorage.setItem('nutri_app_menu', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
+
+  // Exportar Copia de Seguridad JSON
+  const exportBackup = () => {
+    const backupData = {
+      recipes,
+      profile,
+      sportsLog,
+      measurements,
+      weeklyMenu,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nutriplan_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Importar Copia de Seguridad JSON
+  const importBackup = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (data.recipes) setRecipes(data.recipes);
+        if (data.profile) setProfile(data.profile);
+        if (data.sportsLog) setSportsLog(data.sportsLog);
+        if (data.measurements) setMeasurements(data.measurements);
+        if (data.weeklyMenu) setWeeklyMenu(data.weeklyMenu);
+        alert('¡Copia de seguridad restaurada correctamente!');
+      } catch (err) {
+        alert('Error al leer el archivo de copia de seguridad.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // Harris-Benedict Modificada
   const calculateBMR = () => {
@@ -212,6 +253,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-28">
+      {/* Header Con Herramientas de Backup */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30 px-5 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -224,13 +266,32 @@ export default function App() {
             </div>
           </div>
 
-          <div className="bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border border-emerald-100">
-            <Flame className="w-4 h-4 fill-emerald-500 text-emerald-500" />
-            <span>MET Base: {fixedBaseTargetKcal} kcal</span>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={exportBackup} 
+              className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 transition-colors"
+              title="Exportar Copia de Seguridad JSON"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 transition-colors"
+              title="Importar Copia de Seguridad JSON"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+            <input type="file" ref={fileInputRef} onChange={importBackup} accept=".json" className="hidden" />
+
+            <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 border border-emerald-100">
+              <Flame className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+              <span>{fixedBaseTargetKcal} kcal</span>
+            </div>
           </div>
         </div>
       </header>
 
+      {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 pt-6">
         {activeTab === 'plan' && (
           <PlanView 
@@ -305,7 +366,7 @@ function NavButton({ id, label, icon, activeTab, setActiveTab }) {
   );
 }
 
-// 1. MENÚ SEMANAL CON NAVEGACIÓN COMPLETA DE CALENDARIO Y LISTA DE COMPRA
+// 1. MENÚ SEMANAL CON NAVEGACIÓN Y AUTO-FILL INTELIGENTE
 function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDate, weekDays, currentWeekOffset, setCurrentWeekOffset }) {
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena'];
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
@@ -330,6 +391,25 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
     }));
   };
 
+  // Función de Autorrelleno Inteligente para la semana actual
+  const autoFillWeek = () => {
+    if (recipes.length === 0) return;
+    const newMenu = { ...weeklyMenu };
+
+    weekDays.forEach(d => {
+      newMenu[d.key] = newMenu[d.key] || {};
+      meals.forEach(meal => {
+        // Buscar recetas que coincidan con la categoría o asignar aleatoria
+        const matching = recipes.filter(r => r.category === meal);
+        const pool = matching.length > 0 ? matching : recipes;
+        const randomRecipe = pool[Math.floor(Math.random() * pool.length)];
+        newMenu[d.key][meal] = randomRecipe;
+      });
+    });
+
+    setWeeklyMenu(newMenu);
+  };
+
   const getDayMacros = (dayKcal) => {
     return {
       protein: Math.round((dayKcal * (profile.proteinPct / 100)) / 4),
@@ -338,7 +418,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
     };
   };
 
-  // Consolidar lista de la compra de la semana actual
   const generateGroceryList = () => {
     const ingredients = [];
     weekDays.forEach(d => {
@@ -362,61 +441,40 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
 
   return (
     <div className="space-y-5">
-      {/* Selector Navegable de Semana */}
       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3">
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setCurrentWeekOffset(prev => prev - 1)}
-            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
-            title="Semana anterior"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+          <button onClick={() => setCurrentWeekOffset(prev => prev - 1)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl"><ChevronLeft className="w-4 h-4" /></button>
           
           <div className="text-center sm:text-left">
-            <span className="text-xs font-bold text-slate-900 block">
-              Mes: {weekDays[0].monthName.toUpperCase()} {weekDays[0].year}
-            </span>
-            <span className="text-[11px] text-emerald-600 font-semibold">
-              Del {weekDays[0].dateFormatted} al {weekDays[6].dateFormatted}
-            </span>
+            <span className="text-xs font-bold text-slate-900 block">Mes: {weekDays[0].monthName.toUpperCase()} {weekDays[0].year}</span>
+            <span className="text-[11px] text-emerald-600 font-semibold">Del {weekDays[0].dateFormatted} al {weekDays[6].dateFormatted}</span>
           </div>
 
-          <button 
-            onClick={() => setCurrentWeekOffset(prev => prev + 1)}
-            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
-            title="Semana siguiente"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          <button onClick={() => setCurrentWeekOffset(prev => prev + 1)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl"><ChevronRight className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+          <button 
+            onClick={autoFillWeek}
+            className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Auto-rellenar
+          </button>
+
           <button 
             onClick={() => setShowGroceryModal(true)}
             className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"
           >
-            <ShoppingCart className="w-4 h-4" /> Lista Compra Semanal ({groceryList.length})
+            <ShoppingCart className="w-4 h-4" /> Compra ({groceryList.length})
           </button>
 
           <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl">
-            <button 
-              onClick={() => setViewMode('matrix')} 
-              className={`px-3 py-1 rounded-xl text-xs font-bold ${viewMode === 'matrix' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
-            >
-              <Grid className="w-3.5 h-3.5 inline mr-1" /> Matriz 7D
-            </button>
-            <button 
-              onClick={() => setViewMode('cards')} 
-              className={`px-3 py-1 rounded-xl text-xs font-bold ${viewMode === 'cards' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
-            >
-              <List className="w-3.5 h-3.5 inline mr-1" /> Día a Día
-            </button>
+            <button onClick={() => setViewMode('matrix')} className={`px-2.5 py-1 rounded-xl text-xs font-bold ${viewMode === 'matrix' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}><Grid className="w-3.5 h-3.5 inline" /></button>
+            <button onClick={() => setViewMode('cards')} className={`px-2.5 py-1 rounded-xl text-xs font-bold ${viewMode === 'cards' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}><List className="w-3.5 h-3.5 inline" /></button>
           </div>
         </div>
       </div>
 
-      {/* VISTA MATRIZ DE 7 DÍAS */}
       {viewMode === 'matrix' && (
         <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-4">
           <table className="w-full text-left min-w-[780px] border-collapse">
@@ -450,9 +508,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
                             <p className="font-bold text-slate-800 truncate">{current.name}</p>
                             <div className="flex justify-between items-center text-[9px] text-emerald-700">
                               <span>{current.kcal} kcal</span>
-                              <button onClick={() => removeRecipe(d.key, meal)} className="text-rose-500 hover:underline">
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+                              <button onClick={() => removeRecipe(d.key, meal)} className="text-rose-500 hover:underline"><Trash2 className="w-3 h-3" /></button>
                             </div>
                           </div>
                         ) : (
@@ -480,7 +536,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       )}
 
-      {/* VISTA DÍA A DÍA */}
       {viewMode === 'cards' && (
         <div className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
@@ -568,13 +623,12 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       )}
 
-      {/* Modal Lista de la Compra */}
       {showGroceryModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b pb-2">
               <h3 className="text-sm font-bold flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-emerald-600" /> Lista de la Compra ({weekDays[0].dateFormatted} - {weekDays[6].dateFormatted})
+                <ShoppingCart className="w-4 h-4 text-emerald-600" /> Lista de la Compra Semanal
               </h3>
               <button onClick={() => setShowGroceryModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
             </div>
@@ -589,7 +643,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-slate-400 py-4 text-center">Asigna recetas al menú semanal para generar automáticamente la lista de ingredientes.</p>
+              <p className="text-xs text-slate-400 py-4 text-center">Asigna recetas a la semana para consolidar los ingredientes.</p>
             )}
           </div>
         </div>
@@ -781,7 +835,7 @@ function RecipesView({ recipes, setRecipes }) {
   );
 }
 
-// 4. ANTROPOMETRÍA CON GRÁFICO SVG MULTIEJE Y TABLA COMPARATIVA
+// 4. ANTROPOMETRÍA
 function AnthropometryView({ measurements, setMeasurements, profile }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -819,7 +873,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
   const sortedMeasurements = [...measurements].sort((a, b) => new Date(b.date) - new Date(a.date));
   const chronological = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  // Generar Puntos SVG para Peso (Eje Izquierdo) y %Grasa (Eje Derecho)
   const getWeightPoints = () => {
     if (chronological.length === 0) return '';
     const maxW = Math.max(...chronological.map(m => Number(m.weight))) + 2;
@@ -848,7 +901,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
 
   return (
     <div className="space-y-6">
-      {/* GRÁFICO MULTIEJE CON LEYENDA (PESO & % GRASA) */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -872,11 +924,10 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
             </div>
           </div>
         ) : (
-          <p className="text-xs text-slate-400 py-4 text-center">Registra al menos 2 entradas con fecha distinta para ver la comparativa gráfica.</p>
+          <p className="text-xs text-slate-400 py-4 text-center">Añade al menos 2 registros con distinta fecha para trazar el gráfico.</p>
         )}
       </div>
 
-      {/* FORMULARIO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico
@@ -902,7 +953,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
         </form>
       </div>
 
-      {/* TABLA COMPARATIVA DE TODAS LAS MEDIDAS */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Tabla de Evolución de Perímetros (cm)</h3>
         <div className="overflow-x-auto">
@@ -1009,7 +1059,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
           <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center">
             <label className="block text-blue-600 font-bold mb-1">Grasas %</label>
             <input type="number" name="fatPct" value={profile.fatPct} onChange={handleChange} className="w-full bg-white border border-blue-200 rounded-xl py-1 text-center font-bold text-blue-700" />
-            <span className="text-[10px] text-blue-500 font-semibold block mt-1">{targetFatGrams} g/día</span>
+            <span className="text-[10px] text-fat-500 font-semibold block mt-1">{targetFatGrams} g/día</span>
           </div>
         </div>
       </div>
