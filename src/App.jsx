@@ -179,7 +179,7 @@ export default function App() {
     const saved = localStorage.getItem('nutri_app_profile');
     return saved ? JSON.parse(saved) : {
       weight: 71.45, height: 175, age: 30, gender: 'male', activity: 1.375,
-      goal: 'maintenance', goalIntensity: 0.15, proteinPct: 30, carbsPct: 45, fatPct: 25
+      goalPercentage: 0, proteinPct: 30, carbsPct: 45, fatPct: 25
     };
   });
 
@@ -276,11 +276,8 @@ export default function App() {
   const tefKcal = tdeeBase * 0.10;
   const totalBaseKcal = tdeeBase + tefKcal;
 
-  const intensityPct = Number(profile.goalIntensity || 0.15);
-  let goalAdjustment = 0;
-  if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * intensityPct);
-  if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * intensityPct);
-
+  const goalPct = Number(profile.goalPercentage !== undefined ? profile.goalPercentage : 0);
+  const goalAdjustment = totalBaseKcal * (goalPct / 100);
   const fixedBaseTargetKcal = Math.round(totalBaseKcal + goalAdjustment);
 
   const getSportsKcalForDate = (dateKey) => {
@@ -1273,10 +1270,25 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
     setProfile(prev => ({ ...prev, [name]: value }));
   };
 
-  const currentIntensityPct = Number(profile.goalIntensity || 0.15);
+  const handleSliderChange = (e) => {
+    const val = Number(e.target.value);
+    setProfile(prev => ({ ...prev, goalPercentage: val }));
+  };
+
+  const currentGoalPct = Number(profile.goalPercentage !== undefined ? profile.goalPercentage : 0);
   const targetProteinGrams = Math.round((fixedBaseTargetKcal * (profile.proteinPct / 100)) / 4);
   const targetCarbsGrams = Math.round((fixedBaseTargetKcal * (profile.carbsPct / 100)) / 4);
   const targetFatGrams = Math.round((fixedBaseTargetKcal * (profile.fatPct / 100)) / 9);
+
+  let statusLabel = 'Mantenimiento (0%)';
+  let statusColor = 'text-amber-500';
+  if (currentGoalPct < 0) {
+    statusLabel = `Déficit Calórico (${currentGoalPct}%)`;
+    statusColor = 'text-rose-500';
+  } else if (currentGoalPct > 0) {
+    statusLabel = `Superávit Calórico (+${currentGoalPct}%)`;
+    statusColor = 'text-emerald-500';
+  }
 
   return (
     <div className="space-y-5">
@@ -1297,7 +1309,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
             <div><label className="block text-slate-400 font-semibold mb-1">Edad</label><input type="number" name="age" value={profile.age} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Factor Actividad (NEAT)</label>
               <select name="activity" value={profile.activity} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
@@ -1307,28 +1319,31 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
                 <option value={1.725}>Muy Activo (1.725)</option>
               </select>
             </div>
+
             <div>
-              <label className="block text-slate-400 font-semibold mb-1">Objetivo Nutricional</label>
-              <select name="goal" value={profile.goal} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
-                <option value="deficit">Déficit Calórico</option>
-                <option value="maintenance">Mantenimiento</option>
-                <option value="surplus">Superávit Calórico</option>
-              </select>
-            </div>
-            
-            {profile.goal !== 'maintenance' && (
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Intensidad del Ajuste (%)</label>
-                <select name="goalIntensity" value={profile.goalIntensity} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
-                  <option value={0.05}>5% (Suave)</option>
-                  <option value={0.10}>10% (Moderado)</option>
-                  <option value={0.15}>15% (Recomendado)</option>
-                  <option value={0.20}>20% (Intenso)</option>
-                  <option value={0.25}>25% (Agresivo)</option>
-                  <option value={0.30}>30% (Extremo)</option>
-                </select>
+              <label className="block text-slate-400 font-semibold mb-1">Objetivo Dinámico (Déficit / Mantenimiento / Superávit)</label>
+              <div className="p-3 rounded-2xl bg-slate-500/5 border border-slate-500/10 space-y-2">
+                <div className="flex justify-between items-center text-xs font-bold">
+                  <span className="text-rose-500">-20% (Déficit)</span>
+                  <span className={statusColor}>{statusLabel}</span>
+                  <span className="text-emerald-500">+20% (Superávit)</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="-20" 
+                  max="20" 
+                  step="1"
+                  value={currentGoalPct}
+                  onChange={handleSliderChange}
+                  className="w-full accent-emerald-500 cursor-pointer h-2 bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500 rounded-lg appearance-none"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400">
+                  <span>Rojo (Pérdida)</span>
+                  <span>0% Neutro</span>
+                  <span>Verde (Ganancia)</span>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -1370,7 +1385,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
           <span className="font-bold">+{Math.round(tefKcal)} kcal</span>
         </div>
         <div className="flex justify-between border-b border-slate-800 pb-1">
-          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal} {profile.goal !== 'maintenance' ? `${Math.round(currentIntensityPct * 100)}%` : ''})</span>
+          <span className="text-slate-400">4. Ajuste Dinámico por Objetivo ({currentGoalPct > 0 ? `+${currentGoalPct}%` : `${currentGoalPct}%`})</span>
           <span className="font-bold text-emerald-400">{Math.round(goalAdjustment)} kcal</span>
         </div>
         <div className="flex justify-between pt-1">
