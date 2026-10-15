@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from './supabaseClient';
 import { 
   Calendar as CalendarIcon, 
   Activity, 
@@ -25,7 +26,11 @@ import {
   Sun, 
   Moon, 
   Award,
-  AlertTriangle
+  AlertTriangle,
+  LogOut,
+  Mail,
+  Lock,
+  User
 } from 'lucide-react';
 
 const INITIAL_RECIPES = [
@@ -127,15 +132,52 @@ function getWeekDaysFromDate(baseDate) {
 }
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState('login'); // 'login' o 'register'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [activeTab, setActiveTab] = useState('plan');
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('nutri_app_theme') === 'dark';
-  });
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('nutri_app_theme') === 'dark');
   const [toastMessage, setToastMessage] = useState('');
-  
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    if (authMode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setAuthError(error.message);
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) setAuthError(error.message);
+      else showToast('¡Registro exitoso! Revisa tu correo o inicia sesión.');
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    showToast('Sesión cerrada');
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -286,6 +328,81 @@ export default function App() {
       .reduce((acc, curr) => acc + Number(curr.calories), 0);
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <p className="text-xs font-bold animate-pulse">Cargando NutriPlan...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full space-y-6 shadow-2xl">
+          <div className="text-center space-y-2">
+            <div className="bg-emerald-500 text-white p-3 rounded-2xl w-12 h-12 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h1 className="text-lg font-bold">NutriPlan PWA</h1>
+            <p className="text-xs text-slate-400">Inicia sesión para sincronizar tus datos en la nube.</p>
+          </div>
+
+          {authError && (
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs p-3 rounded-2xl text-center font-semibold">
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleAuth} className="space-y-4 text-xs">
+            <div className="space-y-1">
+              <label className="text-slate-400 font-semibold">Correo Electrónico</label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <input 
+                  type="email" 
+                  required 
+                  placeholder="tu@correo.com" 
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white font-semibold focus:outline-none focus:border-emerald-500" 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-slate-400 font-semibold">Contraseña</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <input 
+                  type="password" 
+                  required 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white font-semibold focus:outline-none focus:border-emerald-500" 
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-600/20 transition-all">
+              {authMode === 'login' ? 'Iniciar Sesión' : 'Registrarse Gratis'}
+            </button>
+          </form>
+
+          <div className="text-center">
+            <button 
+              onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} 
+              className="text-xs text-slate-400 hover:text-emerald-400 font-semibold transition-colors"
+            >
+              {authMode === 'login' ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'} font-sans pb-28`}>
       {toastMessage && (
@@ -316,9 +433,12 @@ export default function App() {
             <button onClick={() => fileInputRef.current?.click()} className={`p-2 rounded-xl transition-colors ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'}`} title="Importar Backup">
               <Upload className="w-4 h-4" />
             </button>
+            <button onClick={handleLogout} className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors" title="Cerrar Sesión">
+              <LogOut className="w-4 h-4" />
+            </button>
             <input type="file" ref={fileInputRef} onChange={importBackup} accept=".json" className="hidden" />
 
-            <div className="bg-emerald-500/10 text-emerald-500 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 border border-emerald-500/20">
+            <div className="bg-emerald-500/10 text-emerald-500 px-3 py-1.5 rounded-full text-xs font-bold hidden sm:flex items-center gap-1 border border-emerald-500/20">
               <Flame className="w-3.5 h-3.5 fill-emerald-500" />
               <span>{fixedBaseTargetKcal} kcal</span>
             </div>
