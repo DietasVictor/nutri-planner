@@ -395,7 +395,6 @@ export default function App() {
             fixedBaseTargetKcal={fixedBaseTargetKcal} 
             darkMode={darkMode}
             showToast={showToast}
-            intensityPct={intensityPct}
           />
         )}
       </main>
@@ -1268,12 +1267,13 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
   );
 }
 
-function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal, darkMode, showToast, intensityPct }) {
+function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal, darkMode, showToast }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
   };
 
+  const currentIntensityPct = Number(profile.goalIntensity || 0.15);
   const targetProteinGrams = Math.round((fixedBaseTargetKcal * (profile.proteinPct / 100)) / 4);
   const targetCarbsGrams = Math.round((fixedBaseTargetKcal * (profile.carbsPct / 100)) / 4);
   const targetFatGrams = Math.round((fixedBaseTargetKcal * (profile.fatPct / 100)) / 9);
@@ -1370,7 +1370,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
           <span className="font-bold">+{Math.round(tefKcal)} kcal</span>
         </div>
         <div className="flex justify-between border-b border-slate-800 pb-1">
-          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal} {profile.goal !== 'maintenance' ? `${Math.round(intensityPct * 100)}%` : ''})</span>
+          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal} {profile.goal !== 'maintenance' ? `${Math.round(currentIntensityPct * 100)}%` : ''})</span>
           <span className="font-bold text-emerald-400">{Math.round(goalAdjustment)} kcal</span>
         </div>
         <div className="flex justify-between pt-1">
