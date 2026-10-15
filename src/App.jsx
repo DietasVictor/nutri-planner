@@ -16,7 +16,9 @@ import {
   X,
   Dumbbell,
   Grid,
-  List
+  List,
+  TrendingUp,
+  Percent
 } from 'lucide-react';
 
 // Recetas Iniciales
@@ -76,20 +78,19 @@ export default function App() {
 
   // Recetas
   const [recipes, setRecipes] = useState(() => {
-    const saved = localStorage.getItem('nutri_recipes_v4');
+    const saved = localStorage.getItem('nutri_recipes_v5');
     return saved ? JSON.parse(saved) : INITIAL_RECIPES;
   });
 
-  // Perfil
+  // Perfil (Sin gasto deportivo estático)
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem('nutri_profile_v4');
+    const saved = localStorage.getItem('nutri_profile_v5');
     return saved ? JSON.parse(saved) : {
       weight: 71.45,
       height: 175,
       age: 30,
       gender: 'male',
       activity: 1.375,
-      sportsCalories: 250,
       goal: 'maintenance',
       goalIntensity: 0.15,
       proteinPct: 30,
@@ -100,15 +101,15 @@ export default function App() {
 
   // Registro de Deportes Diarios
   const [sportsLog, setSportsLog] = useState(() => {
-    const saved = localStorage.getItem('nutri_sports_v4');
+    const saved = localStorage.getItem('nutri_sports_v5');
     return saved ? JSON.parse(saved) : [
-      { id: 's1', date: new Date().toISOString().split('T')[0], type: 'Gimnasio', calories: 250 }
+      { id: 's1', day: 'Lunes', type: 'Gimnasio', calories: 250 }
     ];
   });
 
-  // Medidas Antropométricas
+  // Medidas Antropométricas Completa
   const [measurements, setMeasurements] = useState(() => {
-    const saved = localStorage.getItem('nutri_measurements_v4');
+    const saved = localStorage.getItem('nutri_measurements_v5');
     return saved ? JSON.parse(saved) : [
       { 
         date: '2026-02-09', 
@@ -120,14 +121,15 @@ export default function App() {
         leftThigh: 58.5, 
         rightCalf: 37.5, 
         leftCalf: 37.5, 
-        neck: 36 
+        neck: 36,
+        bodyFat: 14.8
       }
     ];
   });
 
-  // Menú Semanal (5 Comidas)
+  // Menú Semanal
   const [weeklyMenu, setWeeklyMenu] = useState(() => {
-    const saved = localStorage.getItem('nutri_weekly_menu_v4');
+    const saved = localStorage.getItem('nutri_weekly_menu_v5');
     return saved ? JSON.parse(saved) : {
       Lunes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
       Martes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
@@ -139,38 +141,41 @@ export default function App() {
     };
   });
 
-  // Persistencia
-  useEffect(() => { localStorage.setItem('nutri_recipes_v4', JSON.stringify(recipes)); }, [recipes]);
-  useEffect(() => { localStorage.setItem('nutri_profile_v4', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('nutri_sports_v4', JSON.stringify(sportsLog)); }, [sportsLog]);
-  useEffect(() => { localStorage.setItem('nutri_measurements_v4', JSON.stringify(measurements)); }, [measurements]);
-  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v4', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
+  // Persistencia Local
+  useEffect(() => { localStorage.setItem('nutri_recipes_v5', JSON.stringify(recipes)); }, [recipes]);
+  useEffect(() => { localStorage.setItem('nutri_profile_v5', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('nutri_sports_v5', JSON.stringify(sportsLog)); }, [sportsLog]);
+  useEffect(() => { localStorage.setItem('nutri_measurements_v5', JSON.stringify(measurements)); }, [measurements]);
+  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v5', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
 
-  // Harris-Benedict Modificada
+  // Harris-Benedict Modificada (Cálculo Fijo Base)
   const calculateBMR = () => {
     if (profile.gender === 'male') {
-      return 88.362 + (13.397 * profile.weight) + (4.799 * profile.height) - (5.677 * profile.age);
+      return 88.362 + (13.397 * Number(profile.weight)) + (4.799 * Number(profile.height)) - (5.677 * Number(profile.age));
     } else {
-      return 447.593 + (9.247 * profile.weight) + (3.098 * profile.height) - (4.330 * profile.age);
+      return 447.593 + (9.247 * Number(profile.weight)) + (3.098 * Number(profile.height)) - (4.330 * Number(profile.age));
     }
   };
 
   const bmr = calculateBMR();
   const neatKcal = bmr * (Number(profile.activity) - 1);
-  const sportsKcal = Number(profile.sportsCalories) || 0;
-  const tdee = bmr + neatKcal + sportsKcal;
-  const tefKcal = tdee * 0.10;
-  const totalBaseKcal = tdee + tefKcal;
+  const tdeeBase = bmr + neatKcal;
+  const tefKcal = tdeeBase * 0.10;
+  const totalBaseKcal = tdeeBase + tefKcal;
 
   let goalAdjustment = 0;
   if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * Number(profile.goalIntensity));
   if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * Number(profile.goalIntensity));
 
-  const targetKcal = Math.round(totalBaseKcal + goalAdjustment);
+  // MET Fijo Base sin deporte global
+  const fixedBaseTargetKcal = Math.round(totalBaseKcal + goalAdjustment);
 
-  const targetProteinGrams = Math.round((targetKcal * (profile.proteinPct / 100)) / 4);
-  const targetCarbsGrams = Math.round((targetKcal * (profile.carbsPct / 100)) / 4);
-  const targetFatGrams = Math.round((targetKcal * (profile.fatPct / 100)) / 9);
+  // Función para obtener las calorías adicionales por deporte de un día concreto
+  const getSportsKcalForDay = (dayName) => {
+    return sportsLog
+      .filter(s => s.day === dayName)
+      .reduce((acc, curr) => acc + Number(curr.calories), 0);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-28">
@@ -189,7 +194,7 @@ export default function App() {
 
           <div className="bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 border border-emerald-100">
             <Flame className="w-4 h-4 fill-emerald-500 text-emerald-500" />
-            <span>{targetKcal} kcal/día</span>
+            <span>MET Base: {fixedBaseTargetKcal} kcal</span>
           </div>
         </div>
       </header>
@@ -201,18 +206,15 @@ export default function App() {
             weeklyMenu={weeklyMenu} 
             setWeeklyMenu={setWeeklyMenu}
             recipes={recipes}
-            targetProtein={targetProteinGrams}
-            targetCarbs={targetCarbsGrams}
-            targetFat={targetFatGrams}
-            targetKcal={targetKcal}
+            profile={profile}
+            fixedBaseTargetKcal={fixedBaseTargetKcal}
+            getSportsKcalForDay={getSportsKcalForDay}
           />
         )}
         {activeTab === 'sports' && (
           <SportsView 
             sportsLog={sportsLog} 
             setSportsLog={setSportsLog}
-            profile={profile}
-            setProfile={setProfile}
           />
         )}
         {activeTab === 'recipes' && <RecipesView recipes={recipes} setRecipes={setRecipes} />}
@@ -229,13 +231,9 @@ export default function App() {
             setProfile={setProfile} 
             bmr={bmr} 
             neatKcal={neatKcal}
-            sportsKcal={sportsKcal}
             tefKcal={tefKcal}
             goalAdjustment={goalAdjustment}
-            targetKcal={targetKcal} 
-            targetProteinGrams={targetProteinGrams}
-            targetCarbsGrams={targetCarbsGrams}
-            targetFatGrams={targetFatGrams}
+            fixedBaseTargetKcal={fixedBaseTargetKcal} 
           />
         )}
       </main>
@@ -271,12 +269,12 @@ function NavButton({ id, label, icon, activeTab, setActiveTab }) {
   );
 }
 
-// 1. MENÚ SEMANAL CON DOS MODOS DE VISTA (TARJETAS O MATRIZ COMPLETA 7 DÍAS)
-function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCarbs, targetFat, targetKcal }) {
+// 1. MENÚ SEMANAL CON INTEGRACIÓN DE DEPORTE POR DÍA
+function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDay }) {
   const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena'];
   const [selectedDay, setSelectedDay] = useState('Lunes');
-  const [viewMode, setViewMode] = useState('matrix'); // 'cards' o 'matrix'
+  const [viewMode, setViewMode] = useState('matrix');
 
   const assignRecipe = (day, mealName, recipe) => {
     setWeeklyMenu(prev => ({
@@ -292,13 +290,25 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
     }));
   };
 
+  // Cálculo de macros para un total calórico específico del día
+  const getDayMacros = (dayKcal) => {
+    return {
+      protein: Math.round((dayKcal * (profile.proteinPct / 100)) / 4),
+      carbs: Math.round((dayKcal * (profile.carbsPct / 100)) / 4),
+      fat: Math.round((dayKcal * (profile.fatPct / 100)) / 9)
+    };
+  };
+
+  const selectedDaySportsKcal = getSportsKcalForDay(selectedDay);
+  const selectedDayTotalKcal = fixedBaseTargetKcal + selectedDaySportsKcal;
+  const selectedDayMacros = getDayMacros(selectedDayTotalKcal);
+
   return (
     <div className="space-y-5">
-      {/* Selector de Modo de Vista y Resumen */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-slate-900">Planificador de Menús</h2>
-          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">{targetKcal} kcal</span>
+        <div>
+          <h2 className="text-sm font-bold text-slate-900">Planificador de Menús Semanal</h2>
+          <p className="text-xs text-slate-400">Los deportes diarios ajustan la meta de cada día individualmente.</p>
         </div>
 
         <div className="flex gap-1 bg-white p-1 rounded-2xl border border-slate-200">
@@ -308,7 +318,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
               viewMode === 'matrix' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Grid className="w-3.5 h-3.5" /> Vista 7 Días Rápida
+            <Grid className="w-3.5 h-3.5" /> Vista Matriz 7 Días
           </button>
           <button 
             onClick={() => setViewMode('cards')} 
@@ -321,32 +331,24 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
         </div>
       </div>
 
-      {/* Target Macros Resumen */}
-      <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
-          <p className="text-[10px] uppercase font-bold text-rose-500">Proteína</p>
-          <p className="text-base font-extrabold text-rose-700">{targetProtein}g</p>
-        </div>
-        <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100">
-          <p className="text-[10px] uppercase font-bold text-amber-500">Carbohidratos</p>
-          <p className="text-base font-extrabold text-amber-700">{targetCarbs}g</p>
-        </div>
-        <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100">
-          <p className="text-[10px] uppercase font-bold text-blue-500">Grasas</p>
-          <p className="text-base font-extrabold text-blue-700">{targetFat}g</p>
-        </div>
-      </div>
-
-      {/* VISTA 1: MATRIZ RÁPIDA 7 DÍAS EN TABLA/GRID */}
+      {/* VISTA MATRIZ 7 DÍAS CON METAS DINÁMICAS */}
       {viewMode === 'matrix' && (
         <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-4">
-          <table className="w-full text-left min-w-[700px] border-collapse">
+          <table className="w-full text-left min-w-[750px] border-collapse">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="p-2 text-xs font-bold text-slate-400 uppercase w-28">Comida</th>
-                {days.map(d => (
-                  <th key={d} className="p-2 text-xs font-bold text-slate-800 text-center">{d}</th>
-                ))}
+                {days.map(d => {
+                  const daySports = getSportsKcalForDay(d);
+                  const dayTotal = fixedBaseTargetKcal + daySports;
+                  return (
+                    <th key={d} className="p-2 text-center">
+                      <p className="text-xs font-bold text-slate-800">{d}</p>
+                      <span className="text-[10px] font-extrabold text-emerald-600 block">{dayTotal} kcal</span>
+                      {daySports > 0 && <span className="text-[9px] text-amber-600 font-semibold block">+{daySports} deporte</span>}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -392,7 +394,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
         </div>
       )}
 
-      {/* VISTA 2: TARJETAS INDIVIDUALES POR DÍA */}
+      {/* VISTA INDIVIDUAL POR DÍA */}
       {viewMode === 'cards' && (
         <div className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
@@ -409,6 +411,31 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
                 {day}
               </button>
             ))}
+          </div>
+
+          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900">Meta para {selectedDay}</h3>
+                {selectedDaySportsKcal > 0 && <span className="text-[10px] text-amber-600 font-bold">Incluye +{selectedDaySportsKcal} kcal por deporte</span>}
+              </div>
+              <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{selectedDayTotalKcal} kcal</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-rose-50 p-2.5 rounded-2xl border border-rose-100">
+                <p className="text-[10px] uppercase font-bold text-rose-500">Proteínas</p>
+                <p className="text-sm font-extrabold text-rose-700">{selectedDayMacros.protein}g</p>
+              </div>
+              <div className="bg-amber-50 p-2.5 rounded-2xl border border-amber-100">
+                <p className="text-[10px] uppercase font-bold text-amber-500">Carbos</p>
+                <p className="text-sm font-extrabold text-amber-700">{selectedDayMacros.carbs}g</p>
+              </div>
+              <div className="bg-blue-50 p-2.5 rounded-2xl border border-blue-100">
+                <p className="text-[10px] uppercase font-bold text-blue-500">Grasas</p>
+                <p className="text-sm font-extrabold text-blue-700">{selectedDayMacros.fat}g</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -458,12 +485,13 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, targetProtein, targetCar
   );
 }
 
-// 2. VISTA DE REGISTRO DE DEPORTES REALIZADOS
-function SportsView({ sportsLog, setSportsLog, profile, setProfile }) {
+// 2. VISTA DE REGISTRO DE DEPORTES POR DÍA DE LA SEMANA
+function SportsView({ sportsLog, setSportsLog }) {
   const [sportType, setSportType] = useState('Gimnasio');
   const [calories, setCalories] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [day, setDay] = useState('Lunes');
 
+  const daysOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const sportsOptions = ['Ciclismo', 'Carrera', 'Natación', 'Gimnasio', 'Otros'];
 
   const handleAddSport = (e) => {
@@ -472,26 +500,17 @@ function SportsView({ sportsLog, setSportsLog, profile, setProfile }) {
 
     const newEntry = {
       id: 's_' + Date.now(),
-      date,
+      day,
       type: sportType,
       calories: Number(calories)
     };
 
-    const updatedLog = [newEntry, ...sportsLog];
-    setSportsLog(updatedLog);
-
-    // Sumar automáticamente al gasto deportivo del perfil
-    const totalTodaySports = updatedLog
-      .filter(s => s.date === date)
-      .reduce((acc, curr) => acc + curr.calories, 0);
-
-    setProfile(prev => ({ ...prev, sportsCalories: totalTodaySports }));
+    setSportsLog(prev => [newEntry, ...prev]);
     setCalories('');
   };
 
   const handleRemove = (id) => {
-    const updated = sportsLog.filter(s => s.id !== id);
-    setSportsLog(updated);
+    setSportsLog(prev => prev.filter(s => s.id !== id));
   };
 
   return (
@@ -504,8 +523,10 @@ function SportsView({ sportsLog, setSportsLog, profile, setProfile }) {
         <form onSubmit={handleAddSport} className="space-y-3 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-slate-500 font-semibold mb-1">Fecha</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold" />
+              <label className="block text-slate-500 font-semibold mb-1">Día de la Semana</label>
+              <select value={day} onChange={e => setDay(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
+                {daysOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-slate-500 font-semibold mb-1">Tipo de Deporte</label>
@@ -520,20 +541,20 @@ function SportsView({ sportsLog, setSportsLog, profile, setProfile }) {
           </div>
 
           <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">
-            + Añadir Sesión Deportiva
+            + Añadir Deporte al {day}
           </button>
         </form>
       </div>
 
       {/* Historial de Deportes */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial de Entrenamientos</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Sesiones Registradas en la Semana</h3>
         <div className="space-y-2">
           {sportsLog.map((s) => (
             <div key={s.id} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
               <div>
+                <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold mr-2">{s.day}</span>
                 <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">{s.type}</span>
-                <p className="text-slate-400 text-[10px] mt-1">{s.date}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-extrabold text-slate-800">+{s.calories} kcal</span>
@@ -628,62 +649,155 @@ function RecipesView({ recipes, setRecipes }) {
   );
 }
 
-// 4. ANTROPOMETRÍA
+// 4. ANTROPOMETRÍA COMPLETA CON FÓRMULA US NAVY Y GRÁFICO SVG DE EVOLUCIÓN
 function AnthropometryView({ measurements, setMeasurements, profile }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     weight: profile.weight || 71.45,
-    chest: 93.5, hips: 93, waist: 75, rightThigh: 58, leftThigh: 58.5, rightCalf: 37.5, leftCalf: 37.5, neck: 36
+    chest: 93.5,
+    hips: 93,
+    waist: 75,
+    rightThigh: 58,
+    leftThigh: 58.5,
+    rightCalf: 37.5,
+    leftCalf: 37.5,
+    neck: 36
   });
 
+  // Fórmula US Navy para % de Grasa Corporal
   const calculateBodyFat = (waist, neck, height, hips, gender) => {
     if (!waist || !neck || !height) return 0;
-    const h = Number(height), w = Number(waist), n = Number(neck), hp = Number(hips) || 90;
+    const h = Number(height);
+    const w = Number(waist);
+    const n = Number(neck);
+    const hp = Number(hips) || 90;
+
     if (gender === 'male') {
       const bf = 495 / (1.0324 - 0.19077 * Math.log10(w - n) + 0.15456 * Math.log10(h)) - 450;
       return Math.max(3, Math.min(50, Math.round(bf * 10) / 10));
+    } else {
+      const bf = 495 / (1.29579 - 0.35004 * Math.log10(w + hp - n) + 0.22100 * Math.log10(h)) - 450;
+      return Math.max(8, Math.min(50, Math.round(bf * 10) / 10));
     }
-    return 15;
   };
 
   const handleAdd = (e) => {
     e.preventDefault();
     const bf = calculateBodyFat(form.waist, form.neck, profile.height, form.hips, profile.gender);
-    setMeasurements(prev => [{ ...form, bodyFat: bf }, ...prev]);
+    const entry = { ...form, bodyFat: bf };
+    setMeasurements(prev => [entry, ...prev]);
+  };
+
+  const latestFat = measurements[0]?.bodyFat || calculateBodyFat(75, 36, profile.height, 93, profile.gender);
+
+  // Generador de Puntos SVG para el Gráfico
+  const getGraphPoints = () => {
+    if (measurements.length === 0) return '';
+    const sorted = [...measurements].reverse();
+    const maxWeight = Math.max(...sorted.map(m => Number(m.weight))) + 2;
+    const minWeight = Math.min(...sorted.map(m => Number(m.weight))) - 2;
+    const range = maxWeight - minWeight || 1;
+
+    return sorted.map((m, idx) => {
+      const x = (idx / Math.max(sorted.length - 1, 1)) * 300 + 10;
+      const y = 80 - ((Number(m.weight) - minWeight) / range) * 60;
+      return `${x},${y}`;
+    }).join(' ');
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Indicador % Grasa Corporal US Navy */}
+      <div className="bg-emerald-950 text-white p-5 rounded-3xl shadow-xl flex justify-between items-center">
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Estimación % Grasa Corporal (US Navy)</span>
+          <p className="text-xs text-emerald-200/70 mt-0.5">Calculado con Cintura, Cuello y Altura</p>
+        </div>
+        <div className="text-right">
+          <span className="text-2xl font-extrabold text-emerald-400">{latestFat}%</span>
+        </div>
+      </div>
+
+      {/* GRÁFICO SVG DE EVOLUCIÓN DEL PESO */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+        <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <TrendingUp className="w-4 h-4 text-emerald-500" /> Evolución del Peso Corporal (kg)
+        </h3>
+        {measurements.length > 1 ? (
+          <div className="w-full overflow-x-auto">
+            <svg viewBox="0 0 320 100" className="w-full h-28 stroke-emerald-500 fill-none stroke-[2.5]">
+              <polyline points={getGraphPoints()} />
+            </svg>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 py-4 text-center">Registra al menos 2 medidas para trazar la línea de evolución.</p>
+        )}
+      </div>
+
+      {/* FORMULARIO DE MEDIDAS COMPLETO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <Scale className="w-4 h-4 text-emerald-500" /> Registro Antropométrico
+          <Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico
         </h2>
+
         <form onSubmit={handleAdd} className="space-y-3 text-xs">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            <div><label className="text-slate-400">Peso (kg)</label><input type="number" step="0.1" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" /></div>
-            <div><label className="text-slate-400">Cintura (cm)</label><input type="number" step="0.5" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" /></div>
-            <div><label className="text-slate-400">Cuello (cm)</label><input type="number" step="0.5" value={form.neck} onChange={e => setForm({...form, neck: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5" /></div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div><label className="block text-slate-400 mb-1">Fecha</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Peso (kg)</label><input type="number" step="0.05" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Cuello (cm)</label><input type="number" step="0.5" value={form.neck} onChange={e => setForm({...form, neck: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Pecho (cm)</label><input type="number" step="0.5" value={form.chest} onChange={e => setForm({...form, chest: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Cintura (cm)</label><input type="number" step="0.5" value={form.waist} onChange={e => setForm({...form, waist: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Cadera (cm)</label><input type="number" step="0.5" value={form.hips} onChange={e => setForm({...form, hips: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Muslo Dcho (cm)</label><input type="number" step="0.5" value={form.rightThigh} onChange={e => setForm({...form, rightThigh: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Muslo Izq (cm)</label><input type="number" step="0.5" value={form.leftThigh} onChange={e => setForm({...form, leftThigh: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Gemelo Dcho (cm)</label><input type="number" step="0.5" value={form.rightCalf} onChange={e => setForm({...form, rightCalf: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
+            <div><label className="block text-slate-400 mb-1">Gemelo Izq (cm)</label><input type="number" step="0.5" value={form.leftCalf} onChange={e => setForm({...form, leftCalf: e.target.value})} className="w-full bg-slate-50 border rounded-xl px-2 py-1.5 font-semibold" /></div>
           </div>
-          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl">Guardar Registro</button>
+
+          <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">
+            Guardar Medidas
+          </button>
         </form>
+      </div>
+
+      {/* Historial de Medidas */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial Registrado</h3>
+        <div className="space-y-2">
+          {measurements.map((m, idx) => (
+            <div key={idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
+              <div>
+                <p className="font-bold text-slate-800">{m.date}</p>
+                <p className="text-[10px] text-slate-400">Cin: {m.waist}cm | Pecho: {m.chest}cm | Muslos: {m.rightThigh}/{m.leftThigh}cm</p>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-extrabold text-emerald-600 block">{m.weight} kg</span>
+                <span className="text-[10px] text-slate-500 font-semibold">{m.bodyFat || latestFat}% grasa</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-// 5. AJUSTE DE REQUERIMIENTOS, GASTO DEPORTIVO EDITABLE Y PORCENTAJES DE MACROS
-function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, goalAdjustment, targetKcal, targetProteinGrams, targetCarbsGrams, targetFatGrams }) {
+// 5. MET & MACROS SIN CAMPO GASTO DEPORTIVO ESTÁTICO
+function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProfile(prev => ({ ...prev, [name]: value }));
   };
 
+  const targetProteinGrams = Math.round((fixedBaseTargetKcal * (profile.proteinPct / 100)) / 4);
+  const targetCarbsGrams = Math.round((fixedBaseTargetKcal * (profile.carbsPct / 100)) / 4);
+  const targetFatGrams = Math.round((fixedBaseTargetKcal * (profile.fatPct / 100)) / 9);
+
   return (
     <div className="space-y-5">
-      {/* Ajustes MET & Gasto Deportivo Editable */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-emerald-500" /> Parámetros Energéticos
+          <Activity className="w-4 h-4 text-emerald-500" /> Datos Corporales y Metabolismo Fijo
         </h2>
 
         <div className="space-y-3 text-xs">
@@ -703,65 +817,43 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, 
                 <option value={1.725}>Muy Activo (1.725)</option>
               </select>
             </div>
-
-            {/* CAMPO EDITABLE DE GASTO DEPORTIVO ESTIMADO */}
             <div>
-              <label className="block text-slate-500 font-semibold mb-1">Gasto Deportivo Estimado (kcal)</label>
-              <input 
-                type="number" 
-                name="sportsCalories" 
-                value={profile.sportsCalories} 
-                onChange={handleChange} 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800"
-              />
+              <label className="block text-slate-500 font-semibold mb-1">Objetivo Nutricional</label>
+              <select name="goal" value={profile.goal} onChange={handleChange} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
+                <option value="deficit">Déficit Calórico</option>
+                <option value="maintenance">Mantenimiento</option>
+                <option value="surplus">Superávit Calórico</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
 
-      {/* AJUSTADOR PORCENTUAL DE MACRONUTRIENTES */}
+      {/* AJUSTE PORCENTUAL DE MACRONUTRIENTES */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3 text-xs">
         <h3 className="text-xs font-bold text-slate-900">Ajuste Porcentual de Macronutrientes (%)</h3>
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100 text-center">
             <label className="block text-rose-600 font-bold mb-1">Proteínas %</label>
-            <input 
-              type="number" 
-              name="proteinPct" 
-              value={profile.proteinPct} 
-              onChange={handleChange} 
-              className="w-full bg-white border border-rose-200 rounded-xl py-1 text-center font-bold text-rose-700" 
-            />
+            <input type="number" name="proteinPct" value={profile.proteinPct} onChange={handleChange} className="w-full bg-white border border-rose-200 rounded-xl py-1 text-center font-bold text-rose-700" />
             <span className="text-[10px] text-rose-500 font-semibold block mt-1">{targetProteinGrams} g/día</span>
           </div>
 
           <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 text-center">
             <label className="block text-amber-600 font-bold mb-1">Carbos %</label>
-            <input 
-              type="number" 
-              name="carbsPct" 
-              value={profile.carbsPct} 
-              onChange={handleChange} 
-              className="w-full bg-white border border-amber-200 rounded-xl py-1 text-center font-bold text-amber-700" 
-            />
+            <input type="number" name="carbsPct" value={profile.carbsPct} onChange={handleChange} className="w-full bg-white border border-amber-200 rounded-xl py-1 text-center font-bold text-amber-700" />
             <span className="text-[10px] text-amber-500 font-semibold block mt-1">{targetCarbsGrams} g/día</span>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center">
             <label className="block text-blue-600 font-bold mb-1">Grasas %</label>
-            <input 
-              type="number" 
-              name="fatPct" 
-              value={profile.fatPct} 
-              onChange={handleChange} 
-              className="w-full bg-white border border-blue-200 rounded-xl py-1 text-center font-bold text-blue-700" 
-            />
+            <input type="number" name="fatPct" value={profile.fatPct} onChange={handleChange} className="w-full bg-white border border-blue-200 rounded-xl py-1 text-center font-bold text-blue-700" />
             <span className="text-[10px] text-blue-500 font-semibold block mt-1">{targetFatGrams} g/día</span>
           </div>
         </div>
       </div>
 
-      {/* DESGLOSE DESCRIPTIVO DE CALORÍAS */}
+      {/* DESGLOSE DEL MET Fijo */}
       <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl space-y-2 text-xs">
         <div className="flex justify-between border-b border-slate-800 pb-1">
           <span className="text-slate-400">1. Metabolismo Basal (BMR)</span>
@@ -772,16 +864,16 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, sportsKcal, tefKcal, 
           <span className="font-bold">+{Math.round(neatKcal)} kcal</span>
         </div>
         <div className="flex justify-between border-b border-slate-800 pb-1">
-          <span className="text-slate-400">3. Gasto Deportivo Estimado</span>
-          <span className="font-bold">+{sportsKcal} kcal</span>
-        </div>
-        <div className="flex justify-between border-b border-slate-800 pb-1">
-          <span className="text-slate-400">4. Efecto Térmico Alimentos (TEF 10%)</span>
+          <span className="text-slate-400">3. Efecto Térmico Alimentos (TEF 10%)</span>
           <span className="font-bold">+{Math.round(tefKcal)} kcal</span>
         </div>
+        <div className="flex justify-between border-b border-slate-800 pb-1">
+          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal})</span>
+          <span className="font-bold text-emerald-400">{Math.round(goalAdjustment)} kcal</span>
+        </div>
         <div className="flex justify-between pt-1">
-          <span className="text-emerald-400 font-bold">OBJETIVO DIARIO FINAL</span>
-          <span className="text-lg font-extrabold text-emerald-400">{targetKcal} kcal</span>
+          <span className="text-emerald-400 font-bold">MET BASE FIJO DIARIO</span>
+          <span className="text-lg font-extrabold text-emerald-400">{fixedBaseTargetKcal} kcal</span>
         </div>
       </div>
     </div>
