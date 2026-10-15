@@ -18,7 +18,9 @@ import {
   Grid,
   List,
   TrendingUp,
-  Percent
+  Percent,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 // Recetas Iniciales
@@ -73,18 +75,50 @@ const INITIAL_RECIPES = [
   }
 ];
 
+// Helper para obtener los 7 días de la semana actual con fecha real
+function getCurrentWeekDays(baseDate = new Date()) {
+  const current = new Date(baseDate);
+  const dayOfWeek = current.getDay();
+  // Ajustar para que Lunes sea el primer día
+  const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(current);
+  monday.setDate(current.getDate() + distanceToMonday);
+
+  const days = [];
+  const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dayNum = String(d.getDate()).padStart(2, '0');
+    const monthNum = String(d.getMonth() + 1).padStart(2, '0');
+    const yearNum = d.getFullYear();
+    const dateKey = `${yearNum}-${monthNum}-${dayNum}`;
+    
+    days.push({
+      key: dateKey,
+      dayName: dayNames[i],
+      dateFormatted: `${dayNum}/${monthNum}`,
+      fullLabel: `${dayNames[i]} ${dayNum}/${monthNum}`,
+      monthName: d.toLocaleString('es-ES', { month: 'long' })
+    });
+  }
+  return days;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('plan');
+  const [weekDays] = useState(() => getCurrentWeekDays());
 
   // Recetas
   const [recipes, setRecipes] = useState(() => {
-    const saved = localStorage.getItem('nutri_recipes_v5');
+    const saved = localStorage.getItem('nutri_recipes_v6');
     return saved ? JSON.parse(saved) : INITIAL_RECIPES;
   });
 
-  // Perfil (Sin gasto deportivo estático)
+  // Perfil
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem('nutri_profile_v5');
+    const saved = localStorage.getItem('nutri_profile_v6');
     return saved ? JSON.parse(saved) : {
       weight: 71.45,
       height: 175,
@@ -99,19 +133,20 @@ export default function App() {
     };
   });
 
-  // Registro de Deportes Diarios
+  // Registro de Deportes Por Fecha (key = YYYY-MM-DD)
   const [sportsLog, setSportsLog] = useState(() => {
-    const saved = localStorage.getItem('nutri_sports_v5');
+    const saved = localStorage.getItem('nutri_sports_v6');
     return saved ? JSON.parse(saved) : [
-      { id: 's1', day: 'Lunes', type: 'Gimnasio', calories: 250 }
+      { id: 's1', dateKey: getCurrentWeekDays()[0].key, type: 'Gimnasio', calories: 250 }
     ];
   });
 
-  // Medidas Antropométricas Completa
+  // Medidas Antropométricas Ordenadas por Fecha
   const [measurements, setMeasurements] = useState(() => {
-    const saved = localStorage.getItem('nutri_measurements_v5');
+    const saved = localStorage.getItem('nutri_measurements_v6');
     return saved ? JSON.parse(saved) : [
       { 
+        id: 'm1',
         date: '2026-02-09', 
         weight: 71.45, 
         chest: 93.5, 
@@ -127,26 +162,18 @@ export default function App() {
     ];
   });
 
-  // Menú Semanal
+  // Menú Semanal indexado por fecha real (dateKey)
   const [weeklyMenu, setWeeklyMenu] = useState(() => {
-    const saved = localStorage.getItem('nutri_weekly_menu_v5');
-    return saved ? JSON.parse(saved) : {
-      Lunes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
-      Martes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
-      Miércoles: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
-      Jueves: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
-      Viernes: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
-      Sábado: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null },
-      Domingo: { Desayuno: null, 'Media Mañana': null, Comida: null, Merienda: null, Cena: null }
-    };
+    const saved = localStorage.getItem('nutri_weekly_menu_v6');
+    return saved ? JSON.parse(saved) : {};
   });
 
   // Persistencia Local
-  useEffect(() => { localStorage.setItem('nutri_recipes_v5', JSON.stringify(recipes)); }, [recipes]);
-  useEffect(() => { localStorage.setItem('nutri_profile_v5', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('nutri_sports_v5', JSON.stringify(sportsLog)); }, [sportsLog]);
-  useEffect(() => { localStorage.setItem('nutri_measurements_v5', JSON.stringify(measurements)); }, [measurements]);
-  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v5', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
+  useEffect(() => { localStorage.setItem('nutri_recipes_v6', JSON.stringify(recipes)); }, [recipes]);
+  useEffect(() => { localStorage.setItem('nutri_profile_v6', JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem('nutri_sports_v6', JSON.stringify(sportsLog)); }, [sportsLog]);
+  useEffect(() => { localStorage.setItem('nutri_measurements_v6', JSON.stringify(measurements)); }, [measurements]);
+  useEffect(() => { localStorage.setItem('nutri_weekly_menu_v6', JSON.stringify(weeklyMenu)); }, [weeklyMenu]);
 
   // Harris-Benedict Modificada (Cálculo Fijo Base)
   const calculateBMR = () => {
@@ -167,13 +194,12 @@ export default function App() {
   if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * Number(profile.goalIntensity));
   if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * Number(profile.goalIntensity));
 
-  // MET Fijo Base sin deporte global
   const fixedBaseTargetKcal = Math.round(totalBaseKcal + goalAdjustment);
 
-  // Función para obtener las calorías adicionales por deporte de un día concreto
-  const getSportsKcalForDay = (dayName) => {
+  // Obtener gasto deportivo para una fecha clave dada
+  const getSportsKcalForDate = (dateKey) => {
     return sportsLog
-      .filter(s => s.day === dayName)
+      .filter(s => s.dateKey === dateKey)
       .reduce((acc, curr) => acc + Number(curr.calories), 0);
   };
 
@@ -188,7 +214,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-tight">NutriPlan PWA</h1>
-              <p className="text-xs text-slate-400 font-medium">Planificador Pro</p>
+              <p className="text-xs text-slate-400 font-medium">Mes: {weekDays[0].monthName.toUpperCase()}</p>
             </div>
           </div>
 
@@ -208,13 +234,15 @@ export default function App() {
             recipes={recipes}
             profile={profile}
             fixedBaseTargetKcal={fixedBaseTargetKcal}
-            getSportsKcalForDay={getSportsKcalForDay}
+            getSportsKcalForDate={getSportsKcalForDate}
+            weekDays={weekDays}
           />
         )}
         {activeTab === 'sports' && (
           <SportsView 
             sportsLog={sportsLog} 
             setSportsLog={setSportsLog}
+            weekDays={weekDays}
           />
         )}
         {activeTab === 'recipes' && <RecipesView recipes={recipes} setRecipes={setRecipes} />}
@@ -269,28 +297,26 @@ function NavButton({ id, label, icon, activeTab, setActiveTab }) {
   );
 }
 
-// 1. MENÚ SEMANAL CON INTEGRACIÓN DE DEPORTE POR DÍA
-function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDay }) {
-  const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+// 1. MENÚ SEMANAL CON FECHAS REALES DE CALENDARIO
+function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDate, weekDays }) {
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena'];
-  const [selectedDay, setSelectedDay] = useState('Lunes');
+  const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
   const [viewMode, setViewMode] = useState('matrix');
 
-  const assignRecipe = (day, mealName, recipe) => {
+  const assignRecipe = (dateKey, mealName, recipe) => {
     setWeeklyMenu(prev => ({
       ...prev,
-      [day]: { ...prev[day], [mealName]: recipe }
+      [dateKey]: { ...(prev[dateKey] || {}), [mealName]: recipe }
     }));
   };
 
-  const removeRecipe = (day, mealName) => {
+  const removeRecipe = (dateKey, mealName) => {
     setWeeklyMenu(prev => ({
       ...prev,
-      [day]: { ...prev[day], [mealName]: null }
+      [dateKey]: { ...(prev[dateKey] || {}), [mealName]: null }
     }));
   };
 
-  // Cálculo de macros para un total calórico específico del día
   const getDayMacros = (dayKcal) => {
     return {
       protein: Math.round((dayKcal * (profile.proteinPct / 100)) / 4),
@@ -299,16 +325,19 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
     };
   };
 
-  const selectedDaySportsKcal = getSportsKcalForDay(selectedDay);
+  const selectedDaySportsKcal = getSportsKcalForDate(selectedDateKey);
   const selectedDayTotalKcal = fixedBaseTargetKcal + selectedDaySportsKcal;
   const selectedDayMacros = getDayMacros(selectedDayTotalKcal);
+  const currentDayInfo = weekDays.find(d => d.key === selectedDateKey) || weekDays[0];
 
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-sm font-bold text-slate-900">Planificador de Menús Semanal</h2>
-          <p className="text-xs text-slate-400">Los deportes diarios ajustan la meta de cada día individualmente.</p>
+          <h2 className="text-sm font-bold text-slate-900">
+            Menú Semanal — Mes de {currentDayInfo.monthName.toUpperCase()}
+          </h2>
+          <p className="text-xs text-slate-400">Las metas calóricas se adaptan al gasto deportivo del día.</p>
         </div>
 
         <div className="flex gap-1 bg-white p-1 rounded-2xl border border-slate-200">
@@ -331,21 +360,22 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       </div>
 
-      {/* VISTA MATRIZ 7 DÍAS CON METAS DINÁMICAS */}
+      {/* VISTA MATRIZ CON FECHAS DE CALENDARIO */}
       {viewMode === 'matrix' && (
         <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-4">
-          <table className="w-full text-left min-w-[750px] border-collapse">
+          <table className="w-full text-left min-w-[780px] border-collapse">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="p-2 text-xs font-bold text-slate-400 uppercase w-28">Comida</th>
-                {days.map(d => {
-                  const daySports = getSportsKcalForDay(d);
+                {weekDays.map(d => {
+                  const daySports = getSportsKcalForDate(d.key);
                   const dayTotal = fixedBaseTargetKcal + daySports;
                   return (
-                    <th key={d} className="p-2 text-center">
-                      <p className="text-xs font-bold text-slate-800">{d}</p>
-                      <span className="text-[10px] font-extrabold text-emerald-600 block">{dayTotal} kcal</span>
-                      {daySports > 0 && <span className="text-[9px] text-amber-600 font-semibold block">+{daySports} deporte</span>}
+                    <th key={d.key} className="p-2 text-center">
+                      <p className="text-xs font-bold text-slate-800">{d.dayName}</p>
+                      <p className="text-[10px] text-slate-400 font-semibold">{d.dateFormatted}</p>
+                      <span className="text-[10px] font-extrabold text-emerald-600 block mt-0.5">{dayTotal} kcal</span>
+                      {daySports > 0 && <span className="text-[9px] text-amber-600 font-bold block">+{daySports} dep.</span>}
                     </th>
                   );
                 })}
@@ -355,16 +385,16 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
               {meals.map(meal => (
                 <tr key={meal} className="hover:bg-slate-50/50">
                   <td className="p-2.5 font-bold text-xs text-slate-600 bg-slate-50/80 rounded-l-xl">{meal}</td>
-                  {days.map(day => {
-                    const current = weeklyMenu[day]?.[meal];
+                  {weekDays.map(d => {
+                    const current = weeklyMenu[d.key]?.[meal];
                     return (
-                      <td key={day} className="p-1.5 align-top">
+                      <td key={d.key} className="p-1.5 align-top">
                         {current ? (
                           <div className="bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-[10px] space-y-1 relative group">
                             <p className="font-bold text-slate-800 truncate">{current.name}</p>
                             <div className="flex justify-between items-center text-[9px] text-emerald-700">
                               <span>{current.kcal} kcal</span>
-                              <button onClick={() => removeRecipe(day, meal)} className="text-rose-500 hover:underline">
+                              <button onClick={() => removeRecipe(d.key, meal)} className="text-rose-500 hover:underline">
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
@@ -373,7 +403,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
                           <select
                             onChange={(e) => {
                               const found = recipes.find(r => r.id === e.target.value);
-                              if (found) assignRecipe(day, meal, found);
+                              if (found) assignRecipe(d.key, meal, found);
                             }}
                             defaultValue=""
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl p-1.5 text-[10px] text-slate-500 focus:outline-none"
@@ -398,17 +428,17 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
       {viewMode === 'cards' && (
         <div className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
-            {days.map((day) => (
+            {weekDays.map((d) => (
               <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                className={`px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  selectedDay === day
+                key={d.key}
+                onClick={() => setSelectedDateKey(d.key)}
+                className={`px-3.5 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  selectedDateKey === d.key
                     ? 'bg-slate-900 text-white shadow-md'
                     : 'bg-white text-slate-600 border border-slate-100'
                 }`}
               >
-                {day}
+                {d.fullLabel}
               </button>
             ))}
           </div>
@@ -416,7 +446,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xs font-bold text-slate-900">Meta para {selectedDay}</h3>
+                <h3 className="text-xs font-bold text-slate-900">Meta para {currentDayInfo.fullLabel}</h3>
                 {selectedDaySportsKcal > 0 && <span className="text-[10px] text-amber-600 font-bold">Incluye +{selectedDaySportsKcal} kcal por deporte</span>}
               </div>
               <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{selectedDayTotalKcal} kcal</span>
@@ -440,13 +470,13 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
 
           <div className="space-y-3">
             {meals.map((meal) => {
-              const currentRecipe = weeklyMenu[selectedDay]?.[meal];
+              const currentRecipe = weeklyMenu[selectedDateKey]?.[meal];
               return (
                 <div key={meal} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{meal}</span>
                     {currentRecipe && (
-                      <button onClick={() => removeRecipe(selectedDay, meal)} className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg">
+                      <button onClick={() => removeRecipe(selectedDateKey, meal)} className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -464,7 +494,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
                     <select 
                       onChange={(e) => {
                         const found = recipes.find(r => r.id === e.target.value);
-                        if (found) assignRecipe(selectedDay, meal, found);
+                        if (found) assignRecipe(selectedDateKey, meal, found);
                       }}
                       defaultValue=""
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 focus:outline-none"
@@ -485,13 +515,12 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   );
 }
 
-// 2. VISTA DE REGISTRO DE DEPORTES POR DÍA DE LA SEMANA
-function SportsView({ sportsLog, setSportsLog }) {
+// 2. REGISTRO DE DEPORTES CON DÍAS DE CALENDARIO REAL
+function SportsView({ sportsLog, setSportsLog, weekDays }) {
   const [sportType, setSportType] = useState('Gimnasio');
   const [calories, setCalories] = useState('');
-  const [day, setDay] = useState('Lunes');
+  const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
 
-  const daysOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const sportsOptions = ['Ciclismo', 'Carrera', 'Natación', 'Gimnasio', 'Otros'];
 
   const handleAddSport = (e) => {
@@ -500,7 +529,7 @@ function SportsView({ sportsLog, setSportsLog }) {
 
     const newEntry = {
       id: 's_' + Date.now(),
-      day,
+      dateKey: selectedDateKey,
       type: sportType,
       calories: Number(calories)
     };
@@ -524,8 +553,8 @@ function SportsView({ sportsLog, setSportsLog }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-500 font-semibold mb-1">Día de la Semana</label>
-              <select value={day} onChange={e => setDay(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
-                {daysOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              <select value={selectedDateKey} onChange={e => setSelectedDateKey(e.target.value)} className="w-full bg-slate-50 border rounded-xl px-3 py-2 font-semibold">
+                {weekDays.map(d => <option key={d.key} value={d.key}>{d.fullLabel}</option>)}
               </select>
             </div>
             <div>
@@ -541,7 +570,7 @@ function SportsView({ sportsLog, setSportsLog }) {
           </div>
 
           <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md">
-            + Añadir Deporte al {day}
+            + Añadir Sesión Deportiva
           </button>
         </form>
       </div>
@@ -550,27 +579,30 @@ function SportsView({ sportsLog, setSportsLog }) {
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Sesiones Registradas en la Semana</h3>
         <div className="space-y-2">
-          {sportsLog.map((s) => (
-            <div key={s.id} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
-              <div>
-                <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold mr-2">{s.day}</span>
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">{s.type}</span>
+          {sportsLog.map((s) => {
+            const dayInfo = weekDays.find(d => d.key === s.dateKey) || { fullLabel: s.dateKey };
+            return (
+              <div key={s.id} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
+                <div>
+                  <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold mr-2">{dayInfo.fullLabel}</span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">{s.type}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-extrabold text-slate-800">+{s.calories} kcal</span>
+                  <button onClick={() => handleRemove(s.id)} className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-extrabold text-slate-800">+{s.calories} kcal</span>
-                <button onClick={() => handleRemove(s.id)} className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-// 3. RECETARIO
+// 3. RECETARIO CON OPCIÓN DE BORRADO DE RECETAS
 function RecipesView({ recipes, setRecipes }) {
   const [showModal, setShowModal] = useState(false);
   const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', steps: '' });
@@ -594,6 +626,10 @@ function RecipesView({ recipes, setRecipes }) {
     setShowModal(false);
   };
 
+  const handleRemoveRecipe = (id) => {
+    setRecipes(prev => prev.filter(r => r.id !== id));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -607,13 +643,22 @@ function RecipesView({ recipes, setRecipes }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {recipes.map((recipe) => (
-          <div key={recipe.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+          <div key={recipe.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3 relative group">
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{recipe.category}</span>
                 <h3 className="text-sm font-bold text-slate-900 mt-1">{recipe.name}</h3>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{recipe.difficulty}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{recipe.difficulty}</span>
+                <button 
+                  onClick={() => handleRemoveRecipe(recipe.id)}
+                  className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg transition-colors"
+                  title="Eliminar Receta"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-1 bg-slate-50 p-2 rounded-xl text-center text-[10px]">
               <div><p className="text-slate-400">Kcal</p><p className="font-bold">{recipe.kcal}</p></div>
@@ -649,7 +694,7 @@ function RecipesView({ recipes, setRecipes }) {
   );
 }
 
-// 4. ANTROPOMETRÍA COMPLETA CON FÓRMULA US NAVY Y GRÁFICO SVG DE EVOLUCIÓN
+// 4. ANTROPOMETRÍA ORDENADA POR FECHA, GRÁFICO CRONOLÓGICO Y OPCIÓN DE BORRADO
 function AnthropometryView({ measurements, setMeasurements, profile }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -664,7 +709,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
     neck: 36
   });
 
-  // Fórmula US Navy para % de Grasa Corporal
   const calculateBodyFat = (waist, neck, height, hips, gender) => {
     if (!waist || !neck || !height) return 0;
     const h = Number(height);
@@ -684,22 +728,36 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
   const handleAdd = (e) => {
     e.preventDefault();
     const bf = calculateBodyFat(form.waist, form.neck, profile.height, form.hips, profile.gender);
-    const entry = { ...form, bodyFat: bf };
-    setMeasurements(prev => [entry, ...prev]);
+    const entry = { ...form, id: 'm_' + Date.now(), bodyFat: bf };
+
+    // Insertar y ordenar automáticamente por fecha descendente (más reciente primero)
+    setMeasurements(prev => {
+      const updated = [entry, ...prev];
+      return updated.sort((a, b) => new Date(b.date) - new Date(a.date));
+    });
   };
 
-  const latestFat = measurements[0]?.bodyFat || calculateBodyFat(75, 36, profile.height, 93, profile.gender);
+  const handleRemoveMeasurement = (id) => {
+    setMeasurements(prev => prev.filter(m => m.id !== id));
+  };
 
-  // Generador de Puntos SVG para el Gráfico
+  // Ordenar lista de medidas para la vista de tabla
+  const sortedMeasurements = [...measurements].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Medidas ordenadas cronológicamente (antiguo -> reciente) para el gráfico SVG
+  const chronologicalForGraph = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const latestFat = sortedMeasurements[0]?.bodyFat || calculateBodyFat(75, 36, profile.height, 93, profile.gender);
+
+  // Generar Puntos para el Gráfico SVG
   const getGraphPoints = () => {
-    if (measurements.length === 0) return '';
-    const sorted = [...measurements].reverse();
-    const maxWeight = Math.max(...sorted.map(m => Number(m.weight))) + 2;
-    const minWeight = Math.min(...sorted.map(m => Number(m.weight))) - 2;
+    if (chronologicalForGraph.length === 0) return '';
+    const maxWeight = Math.max(...chronologicalForGraph.map(m => Number(m.weight))) + 2;
+    const minWeight = Math.min(...chronologicalForGraph.map(m => Number(m.weight))) - 2;
     const range = maxWeight - minWeight || 1;
 
-    return sorted.map((m, idx) => {
-      const x = (idx / Math.max(sorted.length - 1, 1)) * 300 + 10;
+    return chronologicalForGraph.map((m, idx) => {
+      const x = (idx / Math.max(chronologicalForGraph.length - 1, 1)) * 300 + 10;
       const y = 80 - ((Number(m.weight) - minWeight) / range) * 60;
       return `${x},${y}`;
     }).join(' ');
@@ -707,7 +765,6 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
 
   return (
     <div className="space-y-6">
-      {/* Indicador % Grasa Corporal US Navy */}
       <div className="bg-emerald-950 text-white p-5 rounded-3xl shadow-xl flex justify-between items-center">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Estimación % Grasa Corporal (US Navy)</span>
@@ -718,23 +775,23 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
         </div>
       </div>
 
-      {/* GRÁFICO SVG DE EVOLUCIÓN DEL PESO */}
+      {/* GRÁFICO SVG CRONOLÓGICO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
         <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-          <TrendingUp className="w-4 h-4 text-emerald-500" /> Evolución del Peso Corporal (kg)
+          <TrendingUp className="w-4 h-4 text-emerald-500" /> Evolución Cronológica del Peso (kg)
         </h3>
-        {measurements.length > 1 ? (
+        {chronologicalForGraph.length > 1 ? (
           <div className="w-full overflow-x-auto">
             <svg viewBox="0 0 320 100" className="w-full h-28 stroke-emerald-500 fill-none stroke-[2.5]">
               <polyline points={getGraphPoints()} />
             </svg>
           </div>
         ) : (
-          <p className="text-xs text-slate-400 py-4 text-center">Registra al menos 2 medidas para trazar la línea de evolución.</p>
+          <p className="text-xs text-slate-400 py-4 text-center">Añade al menos 2 registros con distinta fecha para trazar el gráfico.</p>
         )}
       </div>
 
-      {/* FORMULARIO DE MEDIDAS COMPLETO */}
+      {/* FORMULARIO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico
@@ -760,19 +817,28 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
         </form>
       </div>
 
-      {/* Historial de Medidas */}
+      {/* HISTORIAL ORDENADO POR FECHA CON BOTÓN DE BORRADO */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial Registrado</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Historial de Registros</h3>
         <div className="space-y-2">
-          {measurements.map((m, idx) => (
-            <div key={idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
+          {sortedMeasurements.map((m) => (
+            <div key={m.id || m.date} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs flex justify-between items-center">
               <div>
                 <p className="font-bold text-slate-800">{m.date}</p>
                 <p className="text-[10px] text-slate-400">Cin: {m.waist}cm | Pecho: {m.chest}cm | Muslos: {m.rightThigh}/{m.leftThigh}cm</p>
               </div>
-              <div className="text-right">
-                <span className="text-sm font-extrabold text-emerald-600 block">{m.weight} kg</span>
-                <span className="text-[10px] text-slate-500 font-semibold">{m.bodyFat || latestFat}% grasa</span>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="text-sm font-extrabold text-emerald-600 block">{m.weight} kg</span>
+                  <span className="text-[10px] text-slate-500 font-semibold">{m.bodyFat || latestFat}% grasa</span>
+                </div>
+                <button 
+                  onClick={() => handleRemoveMeasurement(m.id)} 
+                  className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors"
+                  title="Borrar medida"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
@@ -782,7 +848,7 @@ function AnthropometryView({ measurements, setMeasurements, profile }) {
   );
 }
 
-// 5. MET & MACROS SIN CAMPO GASTO DEPORTIVO ESTÁTICO
+// 5. MET & MACROS
 function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -829,7 +895,6 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
         </div>
       </div>
 
-      {/* AJUSTE PORCENTUAL DE MACRONUTRIENTES */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3 text-xs">
         <h3 className="text-xs font-bold text-slate-900">Ajuste Porcentual de Macronutrientes (%)</h3>
         <div className="grid grid-cols-3 gap-3">
@@ -853,7 +918,6 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
         </div>
       </div>
 
-      {/* DESGLOSE DEL MET Fijo */}
       <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl space-y-2 text-xs">
         <div className="flex justify-between border-b border-slate-800 pb-1">
           <span className="text-slate-400">1. Metabolismo Basal (BMR)</span>
