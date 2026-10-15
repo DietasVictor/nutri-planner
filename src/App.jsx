@@ -133,11 +133,27 @@ export default function App() {
     return localStorage.getItem('nutri_app_theme') === 'dark';
   });
   const [toastMessage, setToastMessage] = useState('');
+  
+  // Estado global para Modal de Confirmación Único
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
+
   const fileInputRef = useRef(null);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
+  };
+
+  const askConfirmation = (title, message, onConfirm) => {
+    setConfirmModal({
+      show: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmModal({ show: false, title: '', message: '', onConfirm: null });
+      }
+    });
   };
 
   const toggleDarkMode = () => {
@@ -202,7 +218,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Efectos de Guardado
+  // Guardado Automático
   useEffect(() => { localStorage.setItem('nutri_app_recipes', JSON.stringify(recipes)); }, [recipes]);
   useEffect(() => { localStorage.setItem('nutri_app_profile', JSON.stringify(profile)); }, [profile]);
   useEffect(() => { localStorage.setItem('nutri_app_sports', JSON.stringify(sportsLog)); }, [sportsLog]);
@@ -212,7 +228,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('nutri_app_water', JSON.stringify(waterLog)); }, [waterLog]);
   useEffect(() => { localStorage.setItem('nutri_app_adherence', JSON.stringify(adherenceLog)); }, [adherenceLog]);
 
-  // Backup JSON
+  // Copia de Seguridad JSON
   const exportBackup = () => {
     const backupData = { recipes, profile, sportsLog, plannedWorkouts, measurements, weeklyMenu, waterLog, adherenceLog, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -248,12 +264,15 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Cálculo MET
+  // Cálculo MET con Fórmula Harris-Benedict por Sexo
   const calculateBMR = () => {
-    if (profile.gender === 'male') {
-      return 88.362 + (13.397 * Number(profile.weight)) + (4.799 * Number(profile.height)) - (5.677 * Number(profile.age));
+    const w = Number(profile.weight);
+    const h = Number(profile.height);
+    const a = Number(profile.age);
+    if (profile.gender === 'female') {
+      return 447.593 + (9.247 * w) + (3.098 * h) - (4.330 * a);
     } else {
-      return 447.593 + (9.247 * Number(profile.weight)) + (3.098 * Number(profile.height)) - (4.330 * Number(profile.age));
+      return 88.362 + (13.397 * w) + (4.799 * h) - (5.677 * a);
     }
   };
 
@@ -264,8 +283,9 @@ export default function App() {
   const totalBaseKcal = tdeeBase + tefKcal;
 
   let goalAdjustment = 0;
-  if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * Number(profile.goalIntensity));
-  if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * Number(profile.goalIntensity));
+  const intensityPct = Number(profile.goalIntensity || 0.15);
+  if (profile.goal === 'deficit') goalAdjustment = -(totalBaseKcal * intensityPct);
+  if (profile.goal === 'surplus') goalAdjustment = (totalBaseKcal * intensityPct);
 
   const fixedBaseTargetKcal = Math.round(totalBaseKcal + goalAdjustment);
 
@@ -323,6 +343,7 @@ export default function App() {
             setWeeklyMenu={setWeeklyMenu}
             recipes={recipes}
             profile={profile}
+            plannedWorkouts={plannedWorkouts}
             fixedBaseTargetKcal={fixedBaseTargetKcal}
             getSportsKcalForDate={getSportsKcalForDate}
             weekDays={weekDays}
@@ -334,6 +355,7 @@ export default function App() {
             setWaterLog={setWaterLog}
             darkMode={darkMode}
             showToast={showToast}
+            askConfirmation={askConfirmation}
           />
         )}
         {activeTab === 'sports' && (
@@ -347,9 +369,18 @@ export default function App() {
             setCurrentWeekOffset={setCurrentWeekOffset}
             darkMode={darkMode}
             showToast={showToast}
+            askConfirmation={askConfirmation}
           />
         )}
-        {activeTab === 'recipes' && <RecipesView recipes={recipes} setRecipes={setRecipes} darkMode={darkMode} showToast={showToast} />}
+        {activeTab === 'recipes' && (
+          <RecipesView 
+            recipes={recipes} 
+            setRecipes={setRecipes} 
+            darkMode={darkMode} 
+            showToast={showToast}
+            askConfirmation={askConfirmation}
+          />
+        )}
         {activeTab === 'anthropometry' && (
           <AnthropometryView 
             measurements={measurements} 
@@ -357,6 +388,7 @@ export default function App() {
             profile={profile}
             darkMode={darkMode}
             showToast={showToast}
+            askConfirmation={askConfirmation}
           />
         )}
         {activeTab === 'profile' && (
@@ -373,6 +405,23 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* MODAL GLOBAL DE CONFIRMACIÓN */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 text-center ${darkMode ? 'bg-slate-900 text-white border border-slate-800' : 'bg-white shadow-xl'}`}>
+            <div className="bg-rose-500/10 text-rose-500 p-3 rounded-full w-12 h-12 mx-auto flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold">{confirmModal.title}</h3>
+            <p className="text-xs text-slate-400">{confirmModal.message}</p>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setConfirmModal({ show: false, title: '', message: '', onConfirm: null })} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>Cancelar</button>
+              <button onClick={confirmModal.onConfirm} className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white shadow-md shadow-rose-600/20">Sí, Borrar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className={`fixed bottom-0 left-0 right-0 border-t py-2.5 px-4 z-40 backdrop-blur-lg transition-colors ${darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-100'}`}>
         <div className="max-w-md mx-auto flex justify-between items-center">
@@ -404,7 +453,7 @@ function NavButton({ id, label, icon, activeTab, setActiveTab, darkMode }) {
   );
 }
 
-// MÓDULO DE HIDRATACIÓN DIARIO
+// HIDRATACIÓN
 function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, darkMode, showToast }) {
   const targetWaterMl = Math.round(Number(profile.weight || 70) * 35);
   const currentGlasses = waterLog[selectedDateKey] || 0;
@@ -450,14 +499,12 @@ function HydrationWidget({ profile, waterLog, setWaterLog, selectedDateKey, dark
   );
 }
 
-// 1. MENÚ SEMANAL CON 7 COMIDAS Y BOTÓN DE BORRAR TODO CON CONFIRMACIÓN
-function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTargetKcal, getSportsKcalForDate, weekDays, currentWeekOffset, setCurrentWeekOffset, adherenceLog, setAdherenceLog, waterLog, setWaterLog, darkMode, showToast }) {
-  // Las 7 comidas completas incluyendo Post-Cena
+// 1. MENÚ SEMANAL (INCLUYE ENTRENAMIENTOS PLANIFICADOS SINCRONIZADOS)
+function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, plannedWorkouts, fixedBaseTargetKcal, getSportsKcalForDate, weekDays, currentWeekOffset, setCurrentWeekOffset, adherenceLog, setAdherenceLog, waterLog, setWaterLog, darkMode, showToast, askConfirmation }) {
   const meals = ['Desayuno', 'Media Mañana', 'Comida', 'Merienda', 'Cena', 'Post-Cena'];
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
   const [viewMode, setViewMode] = useState('matrix');
   const [showGroceryModal, setShowGroceryModal] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => { setSelectedDateKey(weekDays[0].key); }, [currentWeekOffset]);
 
@@ -466,18 +513,18 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   };
 
   const removeRecipe = (dateKey, mealName) => {
-    setWeeklyMenu(prev => ({ ...prev, [dateKey]: { ...(prev[dateKey] || {}), [mealName]: null } }));
+    askConfirmation('¿Eliminar esta receta?', `¿Estás seguro de quitar "${weeklyMenu[dateKey]?.[mealName]?.name}" del menú?`, () => {
+      setWeeklyMenu(prev => ({ ...prev, [dateKey]: { ...(prev[dateKey] || {}), [mealName]: null } }));
+    });
   };
 
-  // Función de Borrado Completo con confirmación previa
   const clearEntireMenu = () => {
-    const updated = { ...weeklyMenu };
-    weekDays.forEach(d => {
-      delete updated[d.key];
+    askConfirmation('¿Borrar todo el menú semanal?', 'Esta acción eliminará de golpe todas las recetas asignadas a los 7 días de esta semana.', () => {
+      const updated = { ...weeklyMenu };
+      weekDays.forEach(d => { delete updated[d.key]; });
+      setWeeklyMenu(updated);
+      showToast('Menú semanal borrado completamente');
     });
-    setWeeklyMenu(updated);
-    setShowClearConfirm(false);
-    showToast('Todo el menú de esta semana ha sido borrado');
   };
 
   const autoFillWeek = () => {
@@ -537,10 +584,11 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   const selectedDayTotalKcal = fixedBaseTargetKcal + selectedDaySportsKcal;
   const selectedDayMacros = getDayMacros(selectedDayTotalKcal);
   const currentDayInfo = weekDays.find(d => d.key === selectedDateKey) || weekDays[0];
+  const selectedDayPlannedWorkouts = plannedWorkouts[selectedDateKey] || [];
 
   return (
     <div className="space-y-5">
-      {/* Selector de Semana y Acciones de Menú */}
+      {/* Selector de Semana */}
       <div className={`p-4 rounded-3xl border shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3 transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <div className="flex items-center gap-2">
           <button onClick={() => setCurrentWeekOffset(prev => prev - 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronLeft className="w-4 h-4" /></button>
@@ -561,7 +609,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
             <RefreshCw className="w-3.5 h-3.5" /> Auto-rellenar
           </button>
 
-          <button onClick={() => setShowClearConfirm(true)} className="bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 transition-colors" title="Borrar todo el menú de la semana">
+          <button onClick={clearEntireMenu} className="bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 transition-colors">
             <Trash2 className="w-4 h-4" /> Borrar Menú
           </button>
 
@@ -580,7 +628,7 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       </div>
 
-      {/* Módulo de Hidratación (Aparece ÚNICAMENTE dentro de la vista Día a Día) */}
+      {/* Hidratación (Solo en vista Día a Día) */}
       {viewMode === 'cards' && (
         <HydrationWidget 
           profile={profile} 
@@ -592,22 +640,35 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         />
       )}
 
-      {/* VISTA MATRIZ CON LAS 7 COMIDAS */}
+      {/* MATRIZ DE 7 DÍAS */}
       {viewMode === 'matrix' && (
         <div className={`overflow-x-auto rounded-3xl border shadow-sm p-4 transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <table className="w-full text-left min-w-[820px] border-collapse">
+          <table className="w-full text-left min-w-[850px] border-collapse">
             <thead>
               <tr className="border-b border-slate-800/20">
                 <th className="p-2 text-xs font-bold text-slate-400 uppercase w-28">Comida</th>
                 {weekDays.map(d => {
                   const daySports = getSportsKcalForDate(d.key);
                   const dayTotal = fixedBaseTargetKcal + daySports;
+                  const dayPlanned = plannedWorkouts[d.key] || [];
+
                   return (
-                    <th key={d.key} className="p-2 text-center">
+                    <th key={d.key} className="p-2 text-center align-top">
                       <p className="text-xs font-bold">{d.dayName}</p>
                       <p className="text-[10px] text-slate-400">{d.dateFormatted}</p>
                       <span className="text-[10px] font-extrabold text-emerald-500 block mt-0.5">{dayTotal} kcal</span>
                       {daySports > 0 && <span className="text-[9px] text-amber-500 font-bold block">+{daySports} dep.</span>}
+                      
+                      {/* Muestra entrenamientos planificados en la cabecera de la matriz */}
+                      {dayPlanned.length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {dayPlanned.map((w, idx) => (
+                            <span key={idx} className="block text-[8px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold truncate">
+                              🏋️ {w}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </th>
                   );
                 })}
@@ -679,6 +740,20 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
               <span className="text-xs font-extrabold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full">{selectedDayTotalKcal} kcal</span>
             </div>
 
+            {/* Banner de Entrenamientos Planificados para el Día Seleccionado */}
+            {selectedDayPlannedWorkouts.length > 0 && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-2xl text-xs space-y-1">
+                <p className="font-bold text-emerald-500 flex items-center gap-1.5"><Dumbbell className="w-3.5 h-3.5" /> Entrenamientos Programados Hoy:</p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {selectedDayPlannedWorkouts.map((w, idx) => (
+                    <span key={idx} className="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="bg-rose-500/10 p-2.5 rounded-2xl border border-rose-500/20">
                 <p className="text-[10px] uppercase font-bold text-rose-500">Proteínas</p>
@@ -747,23 +822,6 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
         </div>
       )}
 
-      {/* Modal Confirmación de Borrado Completo */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 text-center ${darkMode ? 'bg-slate-900 text-white border border-slate-800' : 'bg-white'}`}>
-            <div className="bg-rose-500/10 text-rose-500 p-3 rounded-full w-12 h-12 mx-auto flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <h3 className="text-sm font-bold">¿Borrar todo el menú?</h3>
-            <p className="text-xs text-slate-400">Esta acción eliminará de golpe todas las recetas asignadas a los 7 días de esta semana. No se puede deshacer.</p>
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => setShowClearConfirm(false)} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>Cancelar</button>
-              <button onClick={clearEntireMenu} className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white shadow-md shadow-rose-600/20">Sí, Borrar Todo</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal Lista de Compra */}
       {showGroceryModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -789,16 +847,16 @@ function PlanView({ weeklyMenu, setWeeklyMenu, recipes, profile, fixedBaseTarget
   );
 }
 
-// 2. REGISTRO DE DEPORTES + PLANIFICACIÓN DE ENTRENAMIENTOS
-function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkouts, weekDays, currentWeekOffset, setCurrentWeekOffset, darkMode, showToast }) {
+// 2. REGISTRO DE DEPORTES + MULTI-ENTRENAMIENTO PLANIFICADO DIARIO
+function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkouts, weekDays, currentWeekOffset, setCurrentWeekOffset, darkMode, showToast, askConfirmation }) {
   const [sportType, setSportType] = useState('Gimnasio');
   const [calories, setCalories] = useState('');
   const [selectedDateKey, setSelectedDateKey] = useState(weekDays[0].key);
-  const [planInput, setPlanInput] = useState('');
+  const [workoutInputs, setWorkoutInputs] = useState({});
 
   const sportsOptions = ['Ciclismo', 'Carrera', 'Natación', 'Gimnasio', 'Otros'];
 
-  const handleAdd = (e) => {
+  const handleAddSportsLog = (e) => {
     e.preventDefault();
     if (!calories) return;
     const newEntry = { id: 's_' + Date.now(), dateKey: selectedDateKey, type: sportType, calories: Number(calories) };
@@ -807,22 +865,32 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
     showToast('Sesión deportiva registrada');
   };
 
-  const handleRemove = (id) => {
-    setSportsLog(prev => prev.filter(s => s.id !== id));
+  const handleRemoveSportsLog = (id) => {
+    askConfirmation('¿Eliminar sesión deportiva?', '¿Deseas borrar este registro de entrenamiento completado?', () => {
+      setSportsLog(prev => prev.filter(s => s.id !== id));
+      showToast('Sesión borrada');
+    });
   };
 
-  const handleSavePlannedWorkout = (dateKey) => {
-    if (!planInput.trim()) return;
-    setPlannedWorkouts(prev => ({ ...prev, [dateKey]: planInput }));
-    setPlanInput('');
-    showToast('Entrenamiento planificado guardado');
+  const handleAddPlannedWorkout = (dateKey) => {
+    const text = workoutInputs[dateKey]?.trim();
+    if (!text) return;
+    setPlannedWorkouts(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), text]
+    }));
+    setWorkoutInputs(prev => ({ ...prev, [dateKey]: '' }));
+    showToast('Entrenamiento añadido al plan');
   };
 
-  const handleRemovePlanned = (dateKey) => {
-    setPlannedWorkouts(prev => {
-      const copy = { ...prev };
-      delete copy[dateKey];
-      return copy;
+  const handleRemovePlannedWorkout = (dateKey, index) => {
+    askConfirmation('¿Eliminar entreno del plan?', '¿Quitar este entrenamiento de la lista de planificados?', () => {
+      setPlannedWorkouts(prev => {
+        const list = [...(prev[dateKey] || [])];
+        list.splice(index, 1);
+        return { ...prev, [dateKey]: list };
+      });
+      showToast('Entrenamiento quitado del plan');
     });
   };
 
@@ -834,50 +902,52 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
         <button onClick={() => setCurrentWeekOffset(prev => prev + 1)} className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}><ChevronRight className="w-4 h-4" /></button>
       </div>
 
-      {/* PLANIFICADOR SEMANAL DE ENTRENAMIENTOS (RUTINA PREVISTA) */}
+      {/* PLANIFICADOR SEMANAL MULTI-ENTRENAMIENTO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-emerald-500" /> Planificación Semanal de Entrenamientos</h2>
-        <p className="text-xs text-slate-400">Define los entrenamientos previstos para cada día de esta semana:</p>
+        <p className="text-xs text-slate-400">Puedes planificar **varios entrenamientos en un mismo día** y aparecerán automáticamente en el menú semanal:</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
           {weekDays.map(d => {
-            const planned = plannedWorkouts[d.key];
+            const list = plannedWorkouts[d.key] || [];
             return (
-              <div key={d.key} className="p-3 rounded-2xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-xs">
-                <div className="flex justify-between items-center font-bold">
-                  <span>{d.fullLabel}</span>
-                  {planned && (
-                    <button onClick={() => handleRemovePlanned(d.key)} className="text-rose-500 hover:underline text-[10px]">Borrar Plan</button>
-                  )}
+              <div key={d.key} className="p-3.5 rounded-2xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-xs">
+                <span className="font-bold block">{d.fullLabel}</span>
+
+                {/* Lista de entrenos guardados para el día */}
+                <div className="space-y-1">
+                  {list.map((w, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-emerald-500/10 text-emerald-500 p-2 rounded-xl font-semibold border border-emerald-500/20">
+                      <span>🏋️ {w}</span>
+                      <button onClick={() => handleRemovePlannedWorkout(d.key, idx)} className="text-rose-500 hover:text-rose-700 p-0.5">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
 
-                {planned ? (
-                  <p className="text-emerald-500 font-semibold bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">{planned}</p>
-                ) : (
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="Ej: Pierna + Hipertrofia" 
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSavePlannedWorkout(d.key);
-                        }
-                      }}
-                      onChange={(e) => setPlanInput(e.target.value)}
-                      className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2.5 py-1 text-xs" 
-                    />
-                  </div>
-                )}
+                {/* Input para añadir un nuevo entreno más al mismo día */}
+                <div className="flex gap-2 pt-1">
+                  <input 
+                    type="text" 
+                    placeholder="Ej: Carrera 5km o Pierna" 
+                    value={workoutInputs[d.key] || ''}
+                    onChange={(e) => setWorkoutInputs({ ...workoutInputs, [d.key]: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddPlannedWorkout(d.key); }}
+                    className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-2.5 py-1 text-xs" 
+                  />
+                  <button onClick={() => handleAddPlannedWorkout(d.key)} className="bg-emerald-600 text-white px-3 py-1 rounded-xl font-bold hover:bg-emerald-700">+ Añadir</button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* REGISTRO DE SESIONES COMPLETADAS */}
+      {/* REGISTRO DE REGISTRO COMPLETO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><Dumbbell className="w-4 h-4 text-emerald-500" /> Registrar Sesión Deportiva Realizada</h2>
-        <form onSubmit={handleAdd} className="space-y-3 text-xs">
+        <form onSubmit={handleAddSportsLog} className="space-y-3 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Día de la Semana</label>
@@ -913,7 +983,7 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-extrabold text-emerald-500">+{s.calories} kcal</span>
-                  <button onClick={() => handleRemove(s.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleRemoveSportsLog(s.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             );
@@ -925,7 +995,7 @@ function SportsView({ sportsLog, setSportsLog, plannedWorkouts, setPlannedWorkou
 }
 
 // 3. RECETARIO
-function RecipesView({ recipes, setRecipes, darkMode, showToast }) {
+function RecipesView({ recipes, setRecipes, darkMode, showToast, askConfirmation }) {
   const [showModal, setShowModal] = useState(false);
   const [newRecipe, setNewRecipe] = useState({ name: '', category: 'Comida', prepTime: '20 min', difficulty: 'Fácil', kcal: '', protein: '', carbs: '', fat: '', ingredients: '', steps: '' });
 
@@ -950,8 +1020,11 @@ function RecipesView({ recipes, setRecipes, darkMode, showToast }) {
     showToast('Receta creada con éxito');
   };
 
-  const handleRemoveRecipe = (id) => {
-    setRecipes(prev => prev.filter(r => r.id !== id));
+  const handleRemoveRecipe = (id, name) => {
+    askConfirmation('¿Eliminar receta?', `¿Estás seguro de que deseas eliminar permanentemente "${name}"?`, () => {
+      setRecipes(prev => prev.filter(r => r.id !== id));
+      showToast('Receta eliminada');
+    });
   };
 
   return (
@@ -971,7 +1044,7 @@ function RecipesView({ recipes, setRecipes, darkMode, showToast }) {
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">{recipe.difficulty}</span>
-                <button onClick={() => handleRemoveRecipe(recipe.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => handleRemoveRecipe(recipe.id, recipe.name)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-1 bg-slate-500/5 p-2 rounded-xl text-center text-[10px]">
@@ -1020,8 +1093,8 @@ function RecipesView({ recipes, setRecipes, darkMode, showToast }) {
   );
 }
 
-// 4. ANTROPOMETRÍA CON MATRIZ DE DELTAS (DIFERENCIAL CM)
-function AnthropometryView({ measurements, setMeasurements, profile, darkMode, showToast }) {
+// 4. ANTROPOMETRÍA
+function AnthropometryView({ measurements, setMeasurements, profile, darkMode, showToast, askConfirmation }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     weight: profile.weight || 71.45,
@@ -1052,14 +1125,16 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
     showToast('Medidas antropométricas guardadas');
   };
 
-  const handleRemoveMeasurement = (id) => {
-    setMeasurements(prev => prev.filter(m => m.id !== id));
+  const handleRemoveMeasurement = (id, date) => {
+    askConfirmation('¿Eliminar registro de medidas?', `¿Eliminar los datos guardados para el ${date}?`, () => {
+      setMeasurements(prev => prev.filter(m => m.id !== id));
+      showToast('Registro eliminado');
+    });
   };
 
   const sortedMeasurements = [...measurements].sort((a, b) => new Date(b.date) - new Date(a.date));
   const chronological = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  // Cálculo de Diferenciales (Deltas) entre la primera y la última medición
   const initial = chronological[0];
   const latest = chronological[chronological.length - 1];
 
@@ -1120,11 +1195,11 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
             </div>
           </div>
         ) : (
-          <p className="text-xs text-slate-400 py-4 text-center">Registra al menos 2 entradas con distinta fecha para trazar el gráfico.</p>
+          <p className="text-xs text-slate-400 py-4 text-center">Registra al menos 2 entradas para trazar el gráfico.</p>
         )}
       </div>
 
-      {/* PANEL DE PROGRESO DE MEDIDAS (DELTAS) */}
+      {/* PANEL DELTAS */}
       {chronological.length >= 2 && (
         <div className={`p-5 rounded-3xl border shadow-sm space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
           <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-500">Progreso Total desde el primer registro</h3>
@@ -1157,7 +1232,7 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
         </div>
       )}
 
-      {/* FORMULARIO DE REGISTRO */}
+      {/* FORMULARIO */}
       <div className={`p-5 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
         <h2 className="text-sm font-bold flex items-center gap-2"><Scale className="w-4 h-4 text-emerald-500" /> Nuevo Registro Antropométrico</h2>
         <form onSubmit={handleAdd} className="space-y-3 text-xs">
@@ -1205,7 +1280,7 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
                   <td className="p-2">{m.hips} cm</td>
                   <td className="p-2">{m.rightThigh} / {m.leftThigh} cm</td>
                   <td className="p-2">
-                    <button onClick={() => handleRemoveMeasurement(m.id)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleRemoveMeasurement(m.id, m.date)} className="text-rose-500 p-1"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}
@@ -1217,7 +1292,7 @@ function AnthropometryView({ measurements, setMeasurements, profile, darkMode, s
   );
 }
 
-// 5. MET & MACROS
+// 5. MET & MACROS (CON SELECTOR DE SEXO Y PORCENTAJE DE DÉFICIT/SUPERÁVIT)
 function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustment, fixedBaseTargetKcal, darkMode, showToast }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1234,13 +1309,20 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
         <h2 className="text-sm font-bold flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500" /> Datos Corporales y Metabolismo Fijo</h2>
 
         <div className="space-y-3 text-xs">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-slate-400 font-semibold mb-1">Sexo (Harris-Benedict)</label>
+              <select name="gender" value={profile.gender} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
+                <option value="male">Hombre</option>
+                <option value="female">Mujer</option>
+              </select>
+            </div>
             <div><label className="block text-slate-400 font-semibold mb-1">Peso (kg)</label><input type="number" step="0.1" name="weight" value={profile.weight} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
             <div><label className="block text-slate-400 font-semibold mb-1">Altura (cm)</label><input type="number" name="height" value={profile.height} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
             <div><label className="block text-slate-400 font-semibold mb-1">Edad</label><input type="number" name="age" value={profile.age} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold" /></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Factor Actividad (NEAT)</label>
               <select name="activity" value={profile.activity} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
@@ -1258,6 +1340,21 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
                 <option value="surplus">Superávit Calórico</option>
               </select>
             </div>
+            
+            {/* Porcentaje de Ajuste Calórico */}
+            {profile.goal !== 'maintenance' && (
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Intensidad del Ajuste (%)</label>
+                <select name="goalIntensity" value={profile.goalIntensity} onChange={handleChange} className="w-full bg-slate-500/10 border border-slate-500/20 rounded-xl px-3 py-2 font-semibold">
+                  <option value={0.05}>5% (Suave)</option>
+                  <option value={0.10}>10% (Moderado)</option>
+                  <option value={0.15}>15% (Recomendado)</option>
+                  <option value={0.20}>20% (Intenso)</option>
+                  <option value={0.25}>25% (Agresivo)</option>
+                  <option value={0.30}>30% (Extremo)</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1287,7 +1384,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
 
       <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl space-y-2 text-xs border border-slate-800">
         <div className="flex justify-between border-b border-slate-800 pb-1">
-          <span className="text-slate-400">1. Metabolismo Basal (BMR)</span>
+          <span className="text-slate-400">1. Metabolismo Basal (BMR - {profile.gender === 'male' ? 'Hombre' : 'Mujer'})</span>
           <span className="font-bold">{Math.round(bmr)} kcal</span>
         </div>
         <div className="flex justify-between border-b border-slate-800 pb-1">
@@ -1299,7 +1396,7 @@ function ProfileView({ profile, setProfile, bmr, neatKcal, tefKcal, goalAdjustme
           <span className="font-bold">+{Math.round(tefKcal)} kcal</span>
         </div>
         <div className="flex justify-between border-b border-slate-800 pb-1">
-          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal})</span>
+          <span className="text-slate-400">4. Ajuste por Objetivo ({profile.goal} {profile.goal !== 'maintenance' ? `${Math.round(intensityPct * 100)}%` : ''})</span>
           <span className="font-bold text-emerald-400">{Math.round(goalAdjustment)} kcal</span>
         </div>
         <div className="flex justify-between pt-1">
