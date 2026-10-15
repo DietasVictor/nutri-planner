@@ -7,11 +7,17 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifestFilename: 'manifest.webmanifest',
+      workbox: {
+        cleanupOutdatedCaches: true,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
+      },
       manifest: {
         name: 'NutriPlan PWA',
         short_name: 'NutriPlan',
         description: 'Planificador nutricional y de entrenamiento',
+        start_url: '/nutri-planner/',
+        scope: '/nutri-planner/',
         theme_color: '#10b981',
         background_color: '#0f172a',
         display: 'standalone',
