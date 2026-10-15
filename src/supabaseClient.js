@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Sustituye estos valores con las credenciales de tu proyecto gratuito en supabase.com
-const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co'
-const SUPABASE_ANON_KEY = 'TU-CLAVE-PUBLICA-ANON'
+const SUPABASE_URL = 'https://anidjghbmxllsiecutiy.supabase.co/rest/v1/'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuaWRqZ2hibXhsbHNpZWN1dGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwODc2MzcsImV4cCI6MjEwNzY2MzYzN30.B1u6-rlN7io0A2PYMt0-hgC7fIm3h-G5el9dNGzwiic'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
